@@ -316,6 +316,10 @@ chmod +x scripts/setup.sh
 
 ## 🎯 Usage Examples
 
+> [!TIP]
+> **Don't have any data handy?**
+> We've generated a 500-record high-quality retail banking dataset specifically for testing. You can find it in the [`sample_data/retail_banking_transactions.csv`](./sample_data/retail_banking_transactions.csv) folder. Download it and drop it into the live app to instantly see the AI in action!
+
 ### Use Case 1: Upload a CSV and Chat
 
 1. Open DataLens at `http://localhost:5173`.
