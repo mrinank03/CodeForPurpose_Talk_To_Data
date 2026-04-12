@@ -1,0 +1,35 @@
+services:
+  - type: web
+    name: datalens-backend
+    runtime: python
+    region: oregon
+    rootDir: backend
+    buildCommand: chmod +x render_build.sh && ./render_build.sh
+    startCommand: uvicorn src.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: OPENROUTER_MODEL
+        value: "google/gemini-2.5-flash"
+      - key: ALLOWED_ORIGIN
+        sync: false
+      - key: SESSIONS_DB_PATH
+        value: "./sessions.db"
+      - key: DATA_DB_DIR
+        value: "./data_dbs/"
+      - key: CHROMA_PATH
+        value: "./chroma_store/"
+      - key: SQL_LLM_TEMPERATURE
+        value: "0.1"
+      - key: NARRATOR_LLM_TEMPERATURE
+        value: "0.3"
+      - key: MAX_RETRY_ATTEMPTS
+        value: "2"
+      - key: MAX_RESULT_ROWS
+        value: "500"
+      - key: MAX_UPLOAD_SIZE_MB
+        value: "20"
+      - key: RATE_LIMIT_PER_MINUTE
+        value: "30"
