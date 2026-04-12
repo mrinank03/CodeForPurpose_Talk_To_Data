@@ -8,7 +8,7 @@
      📸 HERO SCREENSHOT — Replace the placeholder below with your screenshot
      ═══════════════════════════════════════════════════════════════════════ -->
 
-![DataLens Dashboard](./docs/screenshots/hero_dashboard.png)
+![DataLens Dashboard](./docs/screenshots/01.png)
 
 </div>
 
@@ -327,7 +327,7 @@ chmod +x scripts/setup.sh
      Replace the path below with your actual screenshot
      ═══════════════════════════════════════════════════════════════════════ -->
 
-![Upload and Dashboard](./docs/screenshots/upload_dashboard.png)
+![Upload and Dashboard](./docs/screenshots/02.png)
 
 ### Use Case 2: Upload a PDF Bank Statement
 
@@ -340,7 +340,7 @@ chmod +x scripts/setup.sh
      📸 SCREENSHOT — PDF upload flow
      ═══════════════════════════════════════════════════════════════════════ -->
 
-![PDF Bank Statement Upload](./docs/screenshots/pdf_upload.png)
+![PDF Bank Statement Upload](./docs/screenshots/03.png)
 
 ### Use Case 3: Conversational Drill-Down
 
@@ -354,7 +354,7 @@ Each response includes the generated SQL, a confidence score, and a context-awar
      📸 SCREENSHOT — Chat conversation with charts
      ═══════════════════════════════════════════════════════════════════════ -->
 
-![Conversational Querying](./docs/screenshots/chat_query.png)
+![Conversational Querying](./docs/screenshots/04.png)
 
 ### Use Case 4: AI-Generated Insight Cards
 
@@ -364,7 +364,7 @@ Click **"Generate AI Insights"** to produce precomputed dashboard cards based pu
      📸 SCREENSHOT — AI Insight cards panel
      ═══════════════════════════════════════════════════════════════════════ -->
 
-![AI Insight Cards](./docs/screenshots/insight_cards.png)
+![AI Insight Cards](./docs/screenshots/05.png)
 
 ### Example API Calls
 
