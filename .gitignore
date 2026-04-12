@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+
+# Environment
+.env
+
+# Database and storage (never commit user data)
+*.db
+*.sqlite
+data_dbs/
+chroma_store/
+uploads/
+
+# Frontend build
+frontend/dist/
+node_modules/
+
+# Misc
+.DS_Store
+*.log
+.gemini/
