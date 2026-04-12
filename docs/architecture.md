@@ -1,5 +1,0 @@
-# DataLens Architecture
-
-The system uses a React frontend and FastAPI backend with a Multi-Agent AI pipeline.
-
-![Architecture Diagram](https://mermaid.ink/img/pako:eNptkctuwyAQhl-FzAkrxXFCkLqNVFXlVLuXXiwiMGFVD2wQOI3y7l2H5qY1vRjm4_vzDxy8UZDggK9dZ6uD_qQkE9Wf3xT4T4vS8hIUN0H3k7SClg-sNVK0hUqgpWbO-s7_aCqC56S1E1rZ2sEa72s5mK0-Kz4F5BysqZ011m0C-FhQhNqCtYw1tGZ0qS3g97E-eW_aA8u5721RwaR0A5U25aJ81A10n0E6Jd2A-eJtA2qJ9wLzC20MszHM4I1K5v4D45m7I8G-54vI_5N8T1-qH_Vv5T49Zg-uX0Wfg8mZt29sUeS_7P3jP-G69z8_f21h_3Xb3w)

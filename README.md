@@ -418,9 +418,6 @@ DATALENS/
 ├── backend/
 │   ├── .env.example                   # Environment variable template (no secrets)
 │   ├── requirements.txt               # Python dependencies (pip install -r)
-│   ├── sessions.db                    # SQLite: session metadata + chat history
-│   ├── data_dbs/                      # One .db file per upload session
-│   ├── chroma_store/                  # ChromaDB persistent vector store
 │   │
 │   ├── src/
 │   │   ├── main.py                    # FastAPI app entrypoint, CORS, rate limiting
@@ -506,10 +503,6 @@ DATALENS/
 │       │
 │       └── types/
 │           └── index.ts               # TypeScript interfaces (DatasetMeta, Message, StoryCard)
-│
-├── docs/
-│   ├── architecture.md                # Architecture overview
-│   └── screenshots/                   # 📸 Place your screenshots here
 │
 └── scripts/
     └── setup.sh                       # One-command project setup
@@ -603,44 +596,5 @@ Each upload creates a separate `.db` file in `data_dbs/`. This provides:
 - **Security isolation** — One user's data cannot accidentally leak to another session's queries.
 - **Zero-config storage** — No external database server required.
 - **Easy cleanup** — Deleting a session removes its `.db` file entirely.
-
----
-
-## ⚠️ Known Limitations
-
-- **Document text truncation:** The LLM-based document structuring currently truncates input text to 6,000 characters to stay within context window limits. Very long multi-page documents (50+ pages) may lose tail-end data. A sliding-window chunking strategy is planned.
-- **No user authentication:** The application runs in an ephemeral session mode. There are no user accounts, login flows, or persistent cross-session profiles. Session data persists locally via SQLite but is not tied to authenticated users.
-- **Local SQLite scaling:** The per-session SQLite architecture is optimized for individual-scale analytical workloads (up to several hundred thousand rows). It is not designed for multi-terabyte enterprise data warehouse use cases.
-- **OCR accuracy on handwriting:** Tesseract OCR performs well on printed text but may struggle with handwritten notes or very low-resolution scans.
-- **LLM latency on upload:** PDF uploads involving Tier 2 or Tier 3 parsing require an LLM API call, which adds 3–10 seconds of processing time depending on document length and API response speed.
-
----
-
-## 🔭 Future Improvements
-
-- **Sliding-window document chunking** — Process 500+ page financial reports by overlapping context windows and stitching extracted tables into a single DataFrame.
-- **Cloud database connectors** — Swap the SQLite dialect for Snowflake, BigQuery, or PostgreSQL connectors to enable enterprise-scale data analysis.
-- **User authentication** — Integrate OAuth/NextAuth to enable persistent user profiles, saved dashboards, and shared workspaces.
-- **Streaming responses** — Use Server-Sent Events (SSE) to stream LLM narration token-by-token for a more responsive chat UX.
-- **Export functionality** — Allow users to export generated charts as PNG/SVG and query results as CSV.
-- **Cloud OCR fallback** — Integrate AWS Textract or Google Document AI as a high-accuracy fallback for Tesseract on complex document layouts.
-
----
-
-## 📸 Screenshots
-
-> **Note:** Replace the placeholder images above with your actual screenshots. Place image files in `docs/screenshots/` and reference them using relative paths.
-
-Create the screenshots directory:
-```bash
-mkdir -p docs/screenshots
-```
-
-Suggested screenshots to capture:
-1. **`hero_dashboard.png`** — The main DataLens interface after a file upload
-2. **`upload_dashboard.png`** — The upload zone + dashboard transition
-3. **`pdf_upload.png`** — A PDF bank statement being processed
-4. **`chat_query.png`** — A chat conversation showing natural language query → SQL → chart
-5. **`insight_cards.png`** — The AI Insights panel with precomputed cards
 
 ---
