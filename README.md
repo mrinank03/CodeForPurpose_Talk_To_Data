@@ -1,6 +1,8 @@
 <div align="center">
 
-# 🔍 DataLens — AI-Powered Conversational Analytics Platform
+# 🔍 NatWest CodeForPurpose - Talk To Data Solution (DataLens)
+
+**🚀 Live Demo:** [https://code-for-purpose-talk-to-data.vercel.app](https://code-for-purpose-talk-to-data.vercel.app)
 
 **Transform raw documents into interactive insights through natural language.**
 
