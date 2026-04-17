@@ -83,9 +83,15 @@ export const useSession = () => {
     localStorage.removeItem('datalens_session_id');
   };
 
+  // Activate a session by ID without loading from the API (used by DB connector)
+  const activateSession = (id: string) => {
+    setSessionId(id);
+    localStorage.setItem('datalens_session_id', id);
+  };
+
   return { 
     sessionId, meta, metricDict, profile, uploadFile, isUploading, 
     uploadProgress, resetSession, suggestedQuestions, setSuggestedQuestions,
-    allSessions, fetchSessions, loadSession, precomputedInsights
+    allSessions, fetchSessions, loadSession, precomputedInsights, activateSession
   };
 };

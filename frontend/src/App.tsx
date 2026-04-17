@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import { Sidebar } from './components/Layout/Sidebar';
 import { FileUploader } from './components/Upload/FileUploader';
 import { StoryCards } from './components/Story/StoryCards';
@@ -16,8 +17,11 @@ const App: React.FC = () => {
     uploadFile, isUploading, uploadProgress, 
     allSessions, fetchSessions, loadSession, resetSession,
     suggestedQuestions, setSuggestedQuestions,
-    precomputedInsights
+    precomputedInsights, activateSession
   } = useSession();
+
+  // Generate a stable session ID for the connector modal when no session exists yet
+  const [connectorSessionId] = useState(() => uuidv4());
 
   const { cards, runStory, isLoading: isStoryLoading, clearStory } = useStory(sessionId, precomputedInsights);
   const { messages, sendMessage, isLoading: isChatLoading, clearChat, setInitialMessages } = useChat(sessionId);
@@ -63,6 +67,9 @@ const App: React.FC = () => {
 
   const handleConnected = (connectionName: string, dbType: string) => {
     setConnectorInfo({ connectionName, dbType, lastSyncedAt: null });
+    // Activate the session so chat UI appears
+    const activeId = sessionId || connectorSessionId;
+    activateSession(activeId);
   };
 
   const handleDisconnect = async () => {
@@ -208,7 +215,7 @@ const App: React.FC = () => {
       {/* Connector Modal */}
       {showConnectorModal && (
         <ConnectorModal
-          sessionId={sessionId || 'temp-session'}
+          sessionId={sessionId || connectorSessionId}
           onClose={() => setShowConnectorModal(false)}
           onConnected={handleConnected}
         />
