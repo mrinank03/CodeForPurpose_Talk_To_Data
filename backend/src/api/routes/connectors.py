@@ -49,20 +49,20 @@ class ConnectionTestRequest(BaseModel):
 @router.post("/connectors/test")
 async def test_db_connection(req: ConnectionTestRequest):
     # Quick connectivity check — does not store credentials.
-    success = test_connection(req.db_type, req.host, req.port,
-                               req.database, req.username, req.password)
+    success, error_msg = test_connection(req.db_type, req.host, req.port,
+                                          req.database, req.username, req.password)
     if not success:
-        raise HTTPException(status_code=400, detail="Could not connect to the database. Check your credentials and network.")
+        raise HTTPException(status_code=400, detail=f"Connection failed: {error_msg}")
     return {"status": "ok", "message": "Connection successful."}
 
 
 @router.post("/connectors/connect")
 async def connect_database(req: ConnectionCredentials):
     # Validates connection, stores credentials in memory, and returns the table list.
-    success = test_connection(req.db_type, req.host, req.port,
-                               req.database, req.username, req.password)
+    success, error_msg = test_connection(req.db_type, req.host, req.port,
+                                          req.database, req.username, req.password)
     if not success:
-        raise HTTPException(status_code=400, detail="Connection failed. Verify host, port, database name, username, and password.")
+        raise HTTPException(status_code=400, detail=f"Connection failed: {error_msg}")
 
     tables = list_tables(req.db_type, req.host, req.port,
                           req.database, req.username, req.password)

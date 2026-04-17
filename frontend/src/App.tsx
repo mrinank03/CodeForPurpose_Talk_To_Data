@@ -50,6 +50,7 @@ const App: React.FC = () => {
     clearChat();
     clearStory();
     setSuggestedQuestions([]);
+    setConnectorInfo(null);
   };
 
   const handleUpload = async (file: File) => {
@@ -75,6 +76,11 @@ const App: React.FC = () => {
     setConnectorInfo(null);
   };
 
+  // Determine if chat should be shown:
+  // Either we have uploaded data (meta exists) OR a database is connected
+  const hasDataSource = !!meta || !!connectorInfo;
+  const showChat = !!sessionId && (hasDataSource || messages.length > 0);
+
   return (
     <div className="flex h-screen bg-natwest-bg text-natwest-textPrimary">
       <Sidebar 
@@ -90,20 +96,59 @@ const App: React.FC = () => {
       
       <div className="flex-1 flex flex-col h-full overflow-hidden relative min-w-0">
         <div className="flex-1 p-6 md:p-8 flex flex-col h-full overflow-hidden">
-          {!sessionId || (!meta && messages.length === 0) ? (
-            <div className="max-w-2xl mx-auto mt-20">
+          {!showChat ? (
+            /* ─── Landing: Upload + Connect Database ─── */
+            <div className="max-w-2xl mx-auto mt-20 w-full">
               <FileUploader 
                 onUpload={handleUpload}
                 isUploading={isUploading}
                 uploadProgress={uploadProgress}
               />
+
+              {/* Divider */}
+              <div className="flex items-center gap-4 my-6">
+                <div className="flex-1 h-px bg-white/10" />
+                <span className="text-white/30 text-xs font-medium uppercase tracking-widest">or</span>
+                <div className="flex-1 h-px bg-white/10" />
+              </div>
+
+              {/* Connect Database — prominent in the center */}
+              <button
+                onClick={() => setShowConnectorModal(true)}
+                className="w-full py-4 px-6 rounded-xl bg-natwest-surface border-2 border-dashed border-natwest-primary/40 hover:border-natwest-primary hover:bg-natwest-primary/10 transition-all group flex items-center justify-center gap-3"
+              >
+                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-natwest-primary to-natwest-teal flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <ellipse cx="12" cy="5" rx="9" ry="3" />
+                    <path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5" />
+                    <path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3" />
+                  </svg>
+                </div>
+                <div className="text-left">
+                  <p className="text-white font-bold text-sm">Connect External Database</p>
+                  <p className="text-white/40 text-xs">PostgreSQL or MySQL — mirror tables and query with AI</p>
+                </div>
+                <svg className="w-5 h-5 text-white/20 group-hover:text-white/50 ml-auto transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                </svg>
+              </button>
             </div>
           ) : (
+            /* ─── Active Session: Chat + Insights ─── */
             <div className="flex h-full w-full pointer-events-auto">
               {/* Left Side: Chat Area */}
               <div className="flex-1 flex flex-col h-full min-w-0 bg-transparent pr-4">
                 <div className="flex items-center justify-between mb-4 flex-shrink-0">
-                  <h3 className="font-bold font-display text-[22px] text-white">DataLens</h3>
+                  <div className="flex items-center gap-3">
+                    <h3 className="font-bold font-display text-[22px] text-white">DataLens</h3>
+                    {/* Show connected DB badge inline when a connector is active */}
+                    {connectorInfo && (
+                      <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-natwest-primary/15 border border-natwest-primary/30">
+                        <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+                        <span className="text-white/70 text-xs font-medium">{connectorInfo.connectionName}</span>
+                      </div>
+                    )}
+                  </div>
                   {cards.length === 0 && messages.length > 0 && (
                     <button 
                       onClick={runStory}
@@ -161,9 +206,9 @@ const App: React.FC = () => {
       </div>
 
       {/* Connector Modal */}
-      {showConnectorModal && sessionId && (
+      {showConnectorModal && (
         <ConnectorModal
-          sessionId={sessionId}
+          sessionId={sessionId || 'temp-session'}
           onClose={() => setShowConnectorModal(false)}
           onConnected={handleConnected}
         />
