@@ -1,14 +1,14 @@
 # Handles copying tables from an external DB into a session-local SQLite mirror.
 # Mirrors are stored in DATA_DB_DIR (same as uploaded CSVs) so the existing
 # query pipeline works without modification.
+# All source connections use SSL via the centralized engine factory.
 
 import os
 import logging
-from typing import List
 import pandas as pd
 from sqlalchemy import create_engine, text
 from dotenv import load_dotenv
-from src.connectors.db_inspector import build_connection_url
+from src.connectors.db_inspector import _create_engine as create_source_engine
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -24,15 +24,11 @@ def get_mirror_path(session_id: str) -> str:
 def mirror_table(session_id: str, db_type: str, host: str, port: int,
                   database: str, username: str, password: str, table_name: str) -> int:
     # Copies a single table from the source DB into the session mirror.
-    # Uses pandas read_sql for simplicity and broad compatibility.
     # Returns the number of rows mirrored.
 
-    source_url = build_connection_url(db_type, host, port, database, username, password)
+    source_engine = create_source_engine(db_type, host, port, database, username, password)
     mirror_path = get_mirror_path(session_id)
-    mirror_url = f"sqlite:///{mirror_path}"
-
-    source_engine = create_engine(source_url)
-    mirror_engine = create_engine(mirror_url)
+    mirror_engine = create_engine(f"sqlite:///{mirror_path}")
 
     try:
         # Read from source — limit to 50k rows to keep demo snappy
@@ -55,13 +51,10 @@ def sync_table_if_changed(session_id: str, db_type: str, host: str, port: int,
     # Checks if the source table row count differs from the mirror.
     # If different, re-mirrors the table. Returns True if a sync happened.
 
-    source_url = build_connection_url(db_type, host, port, database, username, password)
+    source_engine = create_source_engine(db_type, host, port, database, username, password)
     mirror_path = get_mirror_path(session_id)
-    mirror_url = f"sqlite:///{mirror_path}"
+    mirror_engine = create_engine(f"sqlite:///{mirror_path}")
     mirror_table_name = f"data_{session_id.replace('-', '_')}"
-
-    source_engine = create_engine(source_url)
-    mirror_engine = create_engine(mirror_url)
 
     try:
         with source_engine.connect() as conn:
@@ -75,7 +68,6 @@ def sync_table_if_changed(session_id: str, db_type: str, host: str, port: int,
                     text(f"SELECT COUNT(*) FROM {mirror_table_name}")
                 ).scalar()
             except Exception:
-                # Table doesn't exist in mirror yet
                 mirror_count = -1
 
         if source_count != mirror_count:

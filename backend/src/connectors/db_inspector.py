@@ -1,9 +1,24 @@
 # Connects to an external PostgreSQL or MySQL database and inspects its schema.
 # Returns table names and column metadata. Does not read row data at this stage.
+# SSL is enabled by default for all connections to support cloud-hosted databases.
 
+import ssl
 from typing import List, Dict, Any
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.exc import OperationalError
+
+
+def _get_ssl_args(db_type: str) -> dict:
+    # Build driver-specific SSL connect_args.
+    # Most cloud databases (RDS, Supabase, PlanetScale, Neon) require SSL.
+    if db_type == "postgresql":
+        return {"sslmode": "require", "connect_timeout": 10}
+    elif db_type == "mysql":
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        return {"ssl": ctx, "connect_timeout": 10}
+    return {"connect_timeout": 10}
 
 
 def build_connection_url(db_type: str, host: str, port: int, database: str,
@@ -17,12 +32,18 @@ def build_connection_url(db_type: str, host: str, port: int, database: str,
         raise ValueError(f"Unsupported db_type: {db_type}")
 
 
+def _create_engine(db_type: str, host: str, port: int, database: str,
+                    username: str, password: str):
+    # Centralized engine factory with SSL enabled.
+    url = build_connection_url(db_type, host, port, database, username, password)
+    return create_engine(url, connect_args=_get_ssl_args(db_type))
+
+
 def test_connection(db_type: str, host: str, port: int, database: str,
                     username: str, password: str) -> bool:
     # Attempts a lightweight connection test. Returns True if successful.
-    url = build_connection_url(db_type, host, port, database, username, password)
     try:
-        engine = create_engine(url, connect_args={"connect_timeout": 10})
+        engine = _create_engine(db_type, host, port, database, username, password)
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
         engine.dispose()
@@ -34,8 +55,7 @@ def test_connection(db_type: str, host: str, port: int, database: str,
 def list_tables(db_type: str, host: str, port: int, database: str,
                 username: str, password: str) -> List[str]:
     # Returns a list of all user-accessible table names in the target database.
-    url = build_connection_url(db_type, host, port, database, username, password)
-    engine = create_engine(url)
+    engine = _create_engine(db_type, host, port, database, username, password)
     try:
         inspector = inspect(engine)
         tables = inspector.get_table_names()
@@ -47,8 +67,7 @@ def list_tables(db_type: str, host: str, port: int, database: str,
 def get_table_schema(db_type: str, host: str, port: int, database: str,
                      username: str, password: str, table_name: str) -> List[Dict[str, Any]]:
     # Returns column-level metadata for a single table.
-    url = build_connection_url(db_type, host, port, database, username, password)
-    engine = create_engine(url)
+    engine = _create_engine(db_type, host, port, database, username, password)
     try:
         inspector = inspect(engine)
         columns = inspector.get_columns(table_name)
