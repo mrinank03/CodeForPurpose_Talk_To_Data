@@ -1,4 +1,5 @@
 import React from 'react';
+import { ConnectorBadge } from '../Connectors/ConnectorBadge';
 
 interface SessionItem {
   id: string;
@@ -14,6 +15,9 @@ interface SidebarProps {
   onSelectSession: (id: string) => void;
   onNewSession: () => void;
   isCollapsed: boolean;
+  onOpenConnector: () => void;
+  connectorInfo: { connectionName: string; dbType: string; lastSyncedAt: string | null } | null;
+  onDisconnect: () => void;
 }
 
 function formatSessionName(filename: string): string {
@@ -43,7 +47,7 @@ function formatRelativeDate(timestamp: string): string {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ sessions, activeSessionId, onSelectSession, onNewSession, isCollapsed }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ sessions, activeSessionId, onSelectSession, onNewSession, isCollapsed, onOpenConnector, connectorInfo, onDisconnect }) => {
   if (isCollapsed) return null;
 
   return (
@@ -105,6 +109,32 @@ export const Sidebar: React.FC<SidebarProps> = ({ sessions, activeSessionId, onS
             );
           })}
         </div>
+      </div>
+
+      {/* Database Connector Section */}
+      <div className="border-t border-white/10">
+        {connectorInfo ? (
+          <ConnectorBadge
+            connectionName={connectorInfo.connectionName}
+            dbType={connectorInfo.dbType}
+            lastSyncedAt={connectorInfo.lastSyncedAt}
+            onDisconnect={onDisconnect}
+          />
+        ) : (
+          <div className="p-3">
+            <button
+              onClick={onOpenConnector}
+              className="w-full py-2.5 px-4 rounded-lg bg-natwest-primary/10 hover:bg-natwest-primary/20 border border-natwest-primary/30 hover:border-natwest-primary/50 text-white/80 hover:text-white transition-all text-sm font-medium flex items-center justify-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <ellipse cx="12" cy="5" rx="9" ry="3" />
+                <path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5" />
+                <path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3" />
+              </svg>
+              Connect Database
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

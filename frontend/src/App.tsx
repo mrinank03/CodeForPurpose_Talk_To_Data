@@ -1,12 +1,14 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Sidebar } from './components/Layout/Sidebar';
 import { FileUploader } from './components/Upload/FileUploader';
 import { StoryCards } from './components/Story/StoryCards';
 import { ChatWindow } from './components/Chat/ChatWindow';
+import { ConnectorModal } from './components/Connectors/ConnectorModal';
 
 import { useSession } from './hooks/useSession';
 import { useStory } from './hooks/useStory';
 import { useChat } from './hooks/useChat';
+import { disconnect as disconnectApi } from './services/connectorApi';
 
 const App: React.FC = () => {
   const { 
@@ -20,6 +22,14 @@ const App: React.FC = () => {
   const { cards, runStory, isLoading: isStoryLoading, clearStory } = useStory(sessionId, precomputedInsights);
   const { messages, sendMessage, isLoading: isChatLoading, clearChat, setInitialMessages } = useChat(sessionId);
 
+  // Connector state
+  const [showConnectorModal, setShowConnectorModal] = useState(false);
+  const [connectorInfo, setConnectorInfo] = useState<{
+    connectionName: string;
+    dbType: string;
+    lastSyncedAt: string | null;
+  } | null>(null);
+
   // Initial load
   useEffect(() => {
     fetchSessions();
@@ -29,7 +39,6 @@ const App: React.FC = () => {
     const data = await loadSession(id);
     if (data && data.messages) {
       setInitialMessages(data.messages);
-      // For a real app, we'd also hydrate the meta here but MVP just needs chat
     } else {
       clearChat();
     }
@@ -46,10 +55,24 @@ const App: React.FC = () => {
   const handleUpload = async (file: File) => {
     try {
       await uploadFile(file);
-      // Upload sets the new session ID automatically internally
     } catch (e) {
       console.error(e);
     }
+  };
+
+  const handleConnected = (connectionName: string, dbType: string) => {
+    setConnectorInfo({ connectionName, dbType, lastSyncedAt: null });
+  };
+
+  const handleDisconnect = async () => {
+    if (sessionId) {
+      try {
+        await disconnectApi(sessionId);
+      } catch (e) {
+        console.error('Disconnect failed:', e);
+      }
+    }
+    setConnectorInfo(null);
   };
 
   return (
@@ -60,6 +83,9 @@ const App: React.FC = () => {
         onSelectSession={handleSelectSession}
         onNewSession={handleNewSession}
         isCollapsed={false}
+        onOpenConnector={() => setShowConnectorModal(true)}
+        connectorInfo={connectorInfo}
+        onDisconnect={handleDisconnect}
       />
       
       <div className="flex-1 flex flex-col h-full overflow-hidden relative min-w-0">
@@ -133,6 +159,15 @@ const App: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Connector Modal */}
+      {showConnectorModal && sessionId && (
+        <ConnectorModal
+          sessionId={sessionId}
+          onClose={() => setShowConnectorModal(false)}
+          onConnected={handleConnected}
+        />
+      )}
     </div>
   );
 };

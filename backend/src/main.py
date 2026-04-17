@@ -7,7 +7,7 @@ from slowapi.errors import RateLimitExceeded
 from dotenv import load_dotenv
 
 from src.data.session_store import init_db
-from src.api.routes import upload, query, story, sessions
+from src.api.routes import upload, query, story, sessions, connectors
 
 load_dotenv()
 
@@ -33,6 +33,8 @@ app.add_middleware(
 @app.on_event("startup")
 async def startup_event():
     init_db()
+    # Ensure the data directory exists for mirrors
+    os.makedirs(os.getenv("DATA_DB_DIR", "./data_dbs/"), exist_ok=True)
 
 # Health check
 @app.get("/health")
@@ -44,6 +46,7 @@ app.include_router(upload.router, prefix="/api", tags=["Upload"])
 app.include_router(query.router, prefix="/api", tags=["Query"])
 app.include_router(story.router, prefix="/api", tags=["Story"])
 app.include_router(sessions.router, prefix="/api", tags=["Sessions"])
+app.include_router(connectors.router, prefix="/api", tags=["Connectors"])
 
 # Global exception handler to ensure CORS headers are sent even on crashes
 from fastapi.responses import JSONResponse
