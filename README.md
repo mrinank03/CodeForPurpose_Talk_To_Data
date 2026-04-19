@@ -113,11 +113,10 @@ graph TB
         subgraph AgentDAG ["Multi-Agent Query Pipeline"]
             Intent["Intent Classifier"]
             Schema["Schema Resolver<br/>(TF-IDF Cosine Similarity)"]
-            Planner["SQL Planner<br/>(LLM with strict guardrails)"]
-            Executor["SQL Executor<br/>(with self-healing retry)"]
+            Planner["SQL Planner<br/>(LLM generates SQL + chart_type)"]
+            Executor["SQL Executor<br/>(self-healing retry x2)"]
             Validator["Result Validator<br/>(confidence scoring)"]
-            Narrator["Narrator<br/>(plain-English summary)"]
-            ChartAdv["Chart Advisor<br/>(semantic column analysis)"]
+            Narrator["Narrator + Chart Advisor<br/>(LLM summary + chart override)"]
         end
     end
 
@@ -142,6 +141,7 @@ graph TB
 
     Upload --> Parser --> Cleaner --> Ingestor
     Ingestor --> DataDB
+    Upload -.->|create session| SessionDB
     Ingestor --> Profiler --> Embedder --> SchemaStore
     Profiler --> Precompute --> UI
 
@@ -151,11 +151,17 @@ graph TB
     ConnAPI --> Scheduler
     Scheduler -.->|periodic sync| Mirror
 
-    Query --> Intent --> Schema --> Planner --> Executor --> Validator --> Narrator --> ChartAdv --> UI
+    Query --> Intent --> Schema --> Planner --> Executor --> Validator --> Narrator --> UI
+    Query -.->|save messages| SessionDB
+    Sessions -.->|read sessions| SessionDB
     Schema -.->|semantic search| SchemaStore
     Executor -.->|SQL queries| DataDB
+    Executor -.->|self-heal error| Planner
+    Intent -.->|LLM call| LLM
     Planner -.->|LLM call| LLM
     Narrator -.->|LLM call| LLM
+    Upload -.->|suggested questions| LLM
+    Profiler -.->|metric dictionary| LLM
     Parser -.->|OCR| Tesseract
     Parser -.->|structuring| LLM
 
@@ -199,17 +205,17 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-    A["💬 User Question<br/>(typed or spoken)"] --> B["Intent Classifier<br/><i>aggregation, comparison,<br/>breakdown, trend,<br/>anomaly, follow_up, general</i>"]
-    B --> C["Schema Resolver<br/><i>TF-IDF Cosine Similarity<br/>for top-5 relevant columns</i>"]
-    C --> D["SQL Planner<br/><i>LLM generates SQL + chart type<br/>with strict guardrails</i>"]
-    D --> E["Executor<br/><i>Run SQL on sandboxed SQLite<br/>Self-heal on error (2 retries)</i>"]
-    E --> F["Validator<br/><i>Check empty results,<br/>truncate >500 rows,<br/>assign confidence</i>"]
-    F --> G["Narrator<br/><i>LLM writes plain-English<br/>summary of results</i>"]
-    G --> H["Chart Advisor<br/><i>Semantic column analysis<br/>→ bar/line/pie/table/none</i>"]
-    H --> I["📊 Response to Frontend"]
+    A["💬 User Question<br/>(typed or spoken)"] --> B["1. Intent Classifier<br/><i>LLM classifies into:<br/>aggregation, comparison,<br/>breakdown, trend,<br/>anomaly, follow_up, general</i>"]
+    B --> C["2. Schema Resolver<br/><i>TF-IDF Cosine Similarity<br/>finds top-5 relevant columns<br/>+ full SQLite schema</i>"]
+    C --> D["3. SQL Planner<br/><i>LLM generates SQL + chart_type<br/>with strict guardrails<br/>(last 3 turns as context)</i>"]
+    D --> E["4. Executor<br/><i>Run SQL on sandboxed SQLite<br/>On error: LLM fixes SQL<br/>(up to 2 retries)</i>"]
+    E -.->|"error → LLM fix → retry"| E
+    E --> F["5. Validator<br/><i>Check empty results,<br/>truncate at 500 rows,<br/>assign High/Medium/Low</i>"]
+    F --> G["6. Narrator + Chart Advisor<br/><i>LLM writes plain-English summary<br/>Chart Advisor may override chart_type<br/>(bar/line/pie/table/none)</i>"]
+    G --> H["📊 Response to Frontend<br/><i>answer, sql, chart_type,<br/>chart_data, confidence, intent</i>"]
 ```
 
-### Database Connector Flow (NEW)
+### Database Connector Flow
 
 ```mermaid
 flowchart LR
