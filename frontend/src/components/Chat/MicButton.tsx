@@ -20,13 +20,10 @@ export const MicButton: React.FC<MicButtonProps> = ({ isListening, isSupported, 
       type="button"
       onClick={onToggle}
       title={
-        !isMicAvailable
-          ? 'Microphone access denied'
-          : isListening
+        isListening
           ? 'Stop listening'
           : 'Speak your question'
       }
-      disabled={!isMicAvailable}
       className={`
         relative flex items-center justify-center w-9 h-9 rounded-full transition-all duration-200
         ${isListening
