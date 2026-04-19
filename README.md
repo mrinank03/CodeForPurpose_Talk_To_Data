@@ -765,14 +765,6 @@ The frontend auto-deploys from the `frontend/` directory on push to `main`. The 
 
 ## 📜 License
 
-This project was built for the **NatWest CodeForPurpose Hackathon 2025**. All rights reserved by the authors.
+This project was built for the **NatWest CodeForPurpose Hackathon 2025**.
 
 ---
-
-<div align="center">
-
-**Built with ❤️ for NatWest CodeForPurpose**
-
-_Transforming how people interact with their data — one question at a time._
-
-</div>
