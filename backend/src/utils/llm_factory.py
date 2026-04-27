@@ -6,7 +6,7 @@ load_dotenv()
 
 def _get_base_llm(temperature: float, max_tokens: int = 1024):
     api_key = os.getenv("OPENROUTER_API_KEY")
-    model_name = os.getenv("OPENROUTER_MODEL", "google/gemini-2.5-flash")
+    model_name = os.getenv("OPENROUTER_MODEL", "openrouter/auto")
     if not api_key:
         raise ValueError("OPENROUTER_API_KEY is not set in .env")
     return ChatOpenAI(

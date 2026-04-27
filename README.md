@@ -35,7 +35,7 @@
   - **Tier 1:** Native table grid extraction via `pdfplumber` for digitally-created PDFs.
   - **Tier 2:** Layout-preserving text extraction → LLM-powered structuring for non-grid documents.
   - **Tier 3:** High-resolution OCR (300 DPI) via `pytesseract` → LLM-powered structuring for scanned/photographed documents.
-- **LLM-powered data structuring** — Raw text from PDFs/images is sent to an LLM (Gemini/Claude via OpenRouter) which returns clean, typed CSV with meaningful column headers (Date, Description, Debit, Credit, Balance, etc.).
+- **LLM-powered data structuring** — Raw text from PDFs/images is sent to an LLM (OpenRouter) which returns clean, typed CSV with meaningful column headers (Date, Description, Debit, Credit, Balance, etc.).
 - **Automated data sanitization pipeline** — Strips currency symbols, auto-casts numeric types, removes OCR artifacts, drops columns with >90% null values, removes duplicate rows, and filters out monotonically increasing ID columns.
 - **Semantic column profiling** — Each column is automatically classified as `measure`, `dimension`, or `time` using statistical heuristics. An LLM generates plain-English descriptions for every column.
 - **TF-IDF semantic schema search** — Column descriptions are vectorized using TF-IDF and matched via Cosine Similarity (a lightweight alternative to heavyweight embedding models that enables deployment on 512MB RAM free-tier hosting).
@@ -127,7 +127,7 @@ graph TB
     end
 
     subgraph External ["External Services"]
-        LLM["OpenRouter API<br/>(Gemini / Claude)"]
+        LLM["OpenRouter API"]
         Tesseract["Tesseract OCR"]
         ExtDB["External DB<br/>(PostgreSQL / MySQL)"]
     end
@@ -250,7 +250,7 @@ flowchart LR
 | **PDF Parsing** | pdfplumber 0.11 | Native table grid extraction and layout-preserving text |
 | **OCR Engine** | pytesseract 0.3 + Tesseract 5 | Optical character recognition for scanned documents |
 | **LLM Orchestration** | LangChain 0.2 | Prompt templates, chain composition, LLM wrappers |
-| **LLM Provider** | OpenRouter → Gemini / Claude | Natural language understanding, SQL generation, narration |
+| **LLM Provider** | OpenRouter | Natural language understanding, SQL generation, narration |
 | **Semantic Search** | Scikit-Learn 1.4 (TF-IDF + Cosine Similarity) | Lightweight column matching — no GPU or heavy model needed |
 | **Validation** | Pydantic 2.7 | Request/response schema validation |
 | **Rate Limiting** | slowapi 0.1 | Per-IP rate limiting on API endpoints |
@@ -298,7 +298,7 @@ Open `backend/.env` and set your API key:
 ```env
 # Required — get your key from https://openrouter.ai/
 OPENROUTER_API_KEY=sk-or-v1-your-key-here
-OPENROUTER_MODEL=google/gemini-2.5-flash
+OPENROUTER_MODEL=openrouter/auto
 
 # Database paths (defaults work out of the box)
 SESSIONS_DB_PATH=./sessions.db
@@ -537,7 +537,7 @@ DATALENS/
 │   │   │   └── analyst_mode.py        # Story mode orchestrator (SQLite → precompute)
 │   │   │
 │   │   └── utils/
-│   │       ├── llm_factory.py         # LLM singleton factory (OpenRouter/Gemini/Claude)
+│   │       ├── llm_factory.py         # LLM singleton factory (OpenRouter)
 │   │       ├── chart_advisor.py       # Semantic chart type recommendation
 │   │       └── confidence.py          # Confidence level enum (High/Medium/Low)
 │   │
@@ -641,7 +641,7 @@ All configuration is driven through environment variables. No secrets are commit
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `OPENROUTER_API_KEY` | *(required)* | API key for LLM access via OpenRouter |
-| `OPENROUTER_MODEL` | `google/gemini-2.5-flash` | LLM model identifier |
+| `OPENROUTER_MODEL` | `openrouter/auto` | LLM model identifier |
 | `SESSIONS_DB_PATH` | `./sessions.db` | Path to session metadata database |
 | `DATA_DB_DIR` | `./data_dbs/` | Directory for per-session data databases (uploads + mirrors) |
 | `CHROMA_PATH` | `./chroma_store/` | TF-IDF schema storage path |

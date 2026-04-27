@@ -13,15 +13,16 @@ logger = logging.getLogger(__name__)
 def _get_connect_args(db_type: str) -> dict:
     # Build driver-specific connect_args with SSL enabled.
     # Supabase, Neon, RDS, PlanetScale all require SSL.
+    # Longer timeout (30s) for cloud-hosted DBs in distant regions.
     if db_type == "postgresql":
         # For psycopg2: sslmode goes into connect_args
-        return {"sslmode": "require", "connect_timeout": 10}
+        return {"sslmode": "require", "connect_timeout": 30}
     elif db_type == "mysql":
         ctx = ssl.create_default_context()
         ctx.check_hostname = False
         ctx.verify_mode = ssl.CERT_NONE
-        return {"ssl": ctx, "connect_timeout": 10}
-    return {"connect_timeout": 10}
+        return {"ssl": ctx, "connect_timeout": 30}
+    return {"connect_timeout": 30}
 
 
 def build_connection_url(db_type: str, host: str, port: int, database: str,

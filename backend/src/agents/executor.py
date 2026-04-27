@@ -19,6 +19,14 @@ class ExecutionResult(BaseModel):
 def execute_with_retry(question: str, initial_sql: str, session_id: str, schema_str: str) -> ExecutionResult:
     db_path = os.path.join(DATA_DB_DIR, f"{session_id}.db")
     engine = create_engine(f"sqlite:///{db_path}")
+
+    # Make LIKE comparisons case-insensitive as a safety net
+    from sqlalchemy import event
+    @event.listens_for(engine, "connect")
+    def _set_sqlite_pragmas(dbapi_conn, _):
+        cursor = dbapi_conn.cursor()
+        cursor.execute("PRAGMA case_sensitive_like = OFF;")
+        cursor.close()
     
     current_sql = initial_sql
     llm = get_sql_llm()

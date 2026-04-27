@@ -12,7 +12,7 @@ services:
       - key: OPENROUTER_API_KEY
         sync: false
       - key: OPENROUTER_MODEL
-        value: "google/gemini-2.5-flash"
+        value: "openrouter/auto"
       - key: ALLOWED_ORIGIN
         sync: false
       - key: SESSIONS_DB_PATH
