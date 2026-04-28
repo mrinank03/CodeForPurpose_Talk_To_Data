@@ -1,10 +1,15 @@
 import { useState } from 'react';
-import { StoryCard } from '../types/index';
+import { StoryCard, ReportData } from '../types/index';
 import api from '../services/api';
 
 export const useStory = (sessionId: string | null, precomputedInsights: StoryCard[] = []) => {
   const [cards, setCards] = useState<StoryCard[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Report state
+  const [reportData, setReportData] = useState<ReportData | null>(null);
+  const [isReportLoading, setIsReportLoading] = useState(false);
+  const [reportColumns, setReportColumns] = useState<string[]>([]);
 
   const runStory = async () => {
     if (!sessionId) {
@@ -36,7 +41,39 @@ export const useStory = (sessionId: string | null, precomputedInsights: StoryCar
     }
   };
 
-  const clearStory = () => setCards([]);
+  const runReport = async (selectedColumns: string[]) => {
+    if (!sessionId) {
+      console.warn('[useStory] No sessionId for report, aborting.');
+      return;
+    }
 
-  return { cards, runStory, isLoading, clearStory };
+    setIsReportLoading(true);
+    setReportColumns(selectedColumns);
+    console.log('[useStory] Generating report for columns:', selectedColumns);
+
+    try {
+      const res = await api.post('/api/report', {
+        session_id: sessionId,
+        selected_columns: selectedColumns,
+      });
+      console.log('[useStory] Report generated:', res.data);
+      setReportData(res.data);
+    } catch (err) {
+      console.error('[useStory] Report generation failed:', err);
+      setReportData(null);
+    } finally {
+      setIsReportLoading(false);
+    }
+  };
+
+  const clearStory = () => {
+    setCards([]);
+    setReportData(null);
+    setReportColumns([]);
+  };
+
+  return {
+    cards, runStory, isLoading, clearStory,
+    reportData, runReport, isReportLoading, reportColumns,
+  };
 };
