@@ -26,18 +26,17 @@ class Cell(BaseModel):
 
 
 class NotebookCreateRequest(BaseModel):
-    session_id: str
+    session_id: Optional[str] = None
     title: str = "Untitled Notebook"
 
 
 class NotebookSaveRequest(BaseModel):
-    session_id: str
+    session_id: Optional[str] = None
     title: str
     cells: List[Cell]
 
 
 class RunCellRequest(BaseModel):
-    session_id: str
     cell_id: str
     cell_type: str
     content: str
@@ -61,18 +60,18 @@ async def create_notebook(req: NotebookCreateRequest):
         "updated_at": _now(),
         "cells": [],
     }
-    save_notebook(req.session_id, notebook)
+    save_notebook(notebook)
     return notebook
 
 
 @router.get("/list")
-async def list_session_notebooks(session_id: str):
-    return list_notebooks(session_id)
+async def list_notebooks_route():
+    return list_notebooks()
 
 
 @router.get("/{notebook_id}")
-async def get_notebook(notebook_id: str, session_id: str):
-    notebook = load_notebook(session_id, notebook_id)
+async def get_notebook(notebook_id: str):
+    notebook = load_notebook(notebook_id)
     if notebook is None:
         raise HTTPException(status_code=404, detail="Notebook not found.")
     return notebook
@@ -80,21 +79,22 @@ async def get_notebook(notebook_id: str, session_id: str):
 
 @router.put("/{notebook_id}")
 async def save_notebook_route(notebook_id: str, req: NotebookSaveRequest):
-    existing = load_notebook(req.session_id, notebook_id)
+    existing = load_notebook(notebook_id)
     if existing is None:
         raise HTTPException(status_code=404, detail="Notebook not found.")
 
     existing["title"] = req.title
+    existing["session_id"] = req.session_id
     existing["cells"] = [cell.model_dump() for cell in req.cells]
     existing["updated_at"] = _now()
 
-    save_notebook(req.session_id, existing)
+    save_notebook(existing)
     return existing
 
 
 @router.delete("/{notebook_id}")
-async def delete_notebook_route(notebook_id: str, session_id: str):
-    deleted = delete_notebook(session_id, notebook_id)
+async def delete_notebook_route(notebook_id: str):
+    deleted = delete_notebook(notebook_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Notebook not found.")
     return {"status": "deleted"}
@@ -106,22 +106,29 @@ async def run_cell(notebook_id: str, req: RunCellRequest):
     if req.cell_type == "text":
         raise HTTPException(status_code=400, detail="Text cells do not run server-side.")
 
+    notebook = load_notebook(notebook_id)
+    if not notebook:
+        raise HTTPException(status_code=404, detail="Notebook not found.")
+        
+    session_id = notebook.get("session_id")
+    if not session_id:
+        raise HTTPException(status_code=400, detail="Notebook is not connected to any data source.")
+
     if req.cell_type == "prompt":
-        output = await run_prompt_cell(req.session_id, req.content)
+        output = await run_prompt_cell(session_id, req.content)
     elif req.cell_type == "code":
-        output = await run_code_cell(req.session_id, req.content)
+        output = await run_code_cell(session_id, req.content)
     else:
         raise HTTPException(status_code=400, detail=f"Unknown cell type: {req.cell_type}")
 
     # Persist the result back into the notebook so reopening shows previous output.
-    notebook = load_notebook(req.session_id, notebook_id)
-    if notebook:
-        for cell in notebook["cells"]:
-            if cell["id"] == req.cell_id:
-                cell["result"] = output.get("result")
-                cell["result_type"] = output.get("result_type")
-                break
-        notebook["updated_at"] = _now()
-        save_notebook(req.session_id, notebook)
+    for cell in notebook.get("cells", []):
+        if cell["id"] == req.cell_id:
+            cell["result"] = output.get("result")
+            cell["result_type"] = output.get("result_type")
+            break
+            
+    notebook["updated_at"] = _now()
+    save_notebook(notebook)
 
     return output
