@@ -77,9 +77,10 @@ def generate_sql_plan(question: str, intent: str, resolved_schema: 'ResolvedSche
         
     try:
         parsed = json.loads(content)
+        raw_sql = parsed.get("sql") or ""  # Guard against null/None from LLM
         return QueryPlan(
             reasoning=parsed.get("reasoning", ""),
-            sql=parsed.get("sql", ""),
+            sql=str(raw_sql).strip() if raw_sql else "",
             chart_type=parsed.get("chart_type", "table")
         )
     except json.JSONDecodeError:
