@@ -147,7 +147,21 @@ const App: React.FC = () => {
       
       <div className="flex-1 flex flex-col h-full overflow-hidden relative min-w-0">
         <div className="flex-1 p-6 md:p-8 flex flex-col h-full overflow-hidden">
-          {!showChat ? (
+          {activeView === 'notebook' && activeNotebookData ? (
+            /* ─── Active Session: Notebook Editor ─── */
+            <NotebookEditor 
+              initialNotebook={activeNotebookData}
+              onBack={handleBackToChat}
+              onUpdateSummary={handleUpdateSummary}
+              onUploadFile={async (f) => {
+                const res = await uploadFile(f);
+                return res.session_id;
+              }}
+              onOpenConnector={() => setShowConnectorModal(true)}
+              isUploading={isUploading}
+              uploadProgress={uploadProgress}
+            />
+          ) : !showChat ? (
             /* ─── Landing: Upload + Connect Database ─── */
             <div className="max-w-2xl mx-auto mt-20 w-full">
               <FileUploader 
@@ -184,20 +198,6 @@ const App: React.FC = () => {
                 </svg>
               </button>
             </div>
-          ) : activeView === 'notebook' && activeNotebookData ? (
-            /* ─── Active Session: Notebook Editor ─── */
-            <NotebookEditor 
-              initialNotebook={activeNotebookData}
-              onBack={handleBackToChat}
-              onUpdateSummary={handleUpdateSummary}
-              onUploadFile={async (f) => {
-                const res = await uploadFile(f);
-                return res.session_id;
-              }}
-              onOpenConnector={() => setShowConnectorModal(true)}
-              isUploading={isUploading}
-              uploadProgress={uploadProgress}
-            />
           ) : (
             /* ─── Active Session: Chat + Insights ─── */
             <div className="flex h-full w-full pointer-events-auto">

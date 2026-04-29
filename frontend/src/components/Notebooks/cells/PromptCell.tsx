@@ -70,7 +70,7 @@ export const PromptCell: React.FC<PromptCellProps> = ({
               Error: {cell.result.error}
             </div>
           )}
-          {!cell.result.error && cell.result_type === 'chart' && cell.result.chart_data && (
+          {!cell.result.error && cell.result.chart_type && cell.result.chart_type !== 'none' && cell.result.chart_data && (
              <ChartRenderer type={cell.result.chart_type} data={cell.result.chart_data} />
           )}
           {!cell.result.error && cell.result_type === 'table' && cell.result.rows && (
