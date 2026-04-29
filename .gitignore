@@ -14,8 +14,6 @@ venv/
 data_dbs/
 chroma_store/
 uploads/
-backend/data/notebooks/*
-!backend/data/notebooks/.gitkeep
 
 # Frontend build
 frontend/dist/
