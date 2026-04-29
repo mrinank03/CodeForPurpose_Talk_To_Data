@@ -39,6 +39,12 @@ const App: React.FC = () => {
     lastSyncedAt: string | null;
   } | null>(null);
 
+  // Notebook state
+  const [activeView, setActiveView] = useState<'chat' | 'notebook'>('chat');
+  const [activeNotebookId, setActiveNotebookId] = useState<string | null>(null);
+  const [activeNotebookData, setActiveNotebookData] = useState<Notebook | null>(null);
+  const [notebookRefreshTrigger, setNotebookRefreshTrigger] = useState(0);
+
   // Initial load
   useEffect(() => {
     fetchSessions();
@@ -60,6 +66,9 @@ const App: React.FC = () => {
     clearStory();
     setSuggestedQuestions([]);
     setConnectorInfo(null);
+    setActiveView('chat');
+    setActiveNotebookId(null);
+    setActiveNotebookData(null);
   };
 
   const handleUpload = async (file: File) => {
@@ -75,6 +84,15 @@ const App: React.FC = () => {
     // Activate the session so chat UI appears
     const activeId = sessionId || connectorSessionId;
     activateSession(activeId);
+
+    // If we're inside a notebook without a session, attach this session to the notebook automatically
+    if (activeView === 'notebook' && activeNotebookData && !activeNotebookData.session_id) {
+       const nb = { ...activeNotebookData, session_id: activeId };
+       // Import saveNotebook from api or just update state and let auto-save catch it?
+       // Auto-save relies on activeNotebookData state, but NotebookEditor has its own state. 
+       // We should update it via a prop, or better yet, force NotebookEditor to re-render with the new session_id by updating activeNotebookData.
+       setActiveNotebookData(nb);
+    }
   };
 
   const handleDisconnect = async () => {
@@ -86,6 +104,26 @@ const App: React.FC = () => {
       }
     }
     setConnectorInfo(null);
+  };
+
+  const handleOpenNotebook = async (id: string) => {
+    try {
+      const data = await getNotebook(id);
+      setActiveNotebookData(data);
+      setActiveNotebookId(id);
+      setActiveView('notebook');
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleBackToChat = () => {
+    setActiveView('chat');
+  };
+
+  const handleUpdateSummary = () => {
+    // Increment trigger so Sidebar re-fetches list to update title/cell count
+    setNotebookRefreshTrigger(prev => prev + 1);
   };
 
   // Determine if chat should be shown:
@@ -104,6 +142,9 @@ const App: React.FC = () => {
         onOpenConnector={() => setShowConnectorModal(true)}
         connectorInfo={connectorInfo}
         onDisconnect={handleDisconnect}
+        activeNotebookId={activeNotebookId}
+        onOpenNotebook={handleOpenNotebook}
+        notebookRefreshTrigger={notebookRefreshTrigger}
       />
       
       <div className="flex-1 flex flex-col h-full overflow-hidden relative min-w-0">
@@ -145,6 +186,20 @@ const App: React.FC = () => {
                 </svg>
               </button>
             </div>
+          ) : activeView === 'notebook' && activeNotebookData ? (
+            /* ─── Active Session: Notebook Editor ─── */
+            <NotebookEditor 
+              initialNotebook={activeNotebookData}
+              onBack={handleBackToChat}
+              onUpdateSummary={handleUpdateSummary}
+              onUploadFile={async (f) => {
+                const res = await uploadFile(f);
+                return res.session_id;
+              }}
+              onOpenConnector={() => setShowConnectorModal(true)}
+              isUploading={isUploading}
+              uploadProgress={uploadProgress}
+            />
           ) : (
             /* ─── Active Session: Chat + Insights ─── */
             <div className="flex h-full w-full pointer-events-auto">
