@@ -67,7 +67,7 @@ export const ChatWindow: React.FC<Props> = ({ messages, isLoading, onSend, sugge
               <ShortQuestionChips questions={suggestedQuestions} onClick={onSend} />
             )}
 
-            {/* Generate AI Insights button — prominent, below chips */}
+            {/* Generate Report button — prominent, below chips */}
             {onGenerateInsights && (
               <button
                 onClick={onGenerateInsights}
@@ -77,7 +77,7 @@ export const ChatWindow: React.FC<Props> = ({ messages, isLoading, onSend, sugge
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z" />
                 </svg>
-                {isStoryLoading ? 'Analyzing your data...' : 'Generate AI Insights'}
+                {isStoryLoading ? 'Analyzing your data...' : 'Generate Report'}
               </button>
             )}
           </div>

@@ -18,6 +18,15 @@ class QueryResponse(BaseModel):
 class StoryRequest(BaseModel):
     session_id: str
 
+class ReportRequest(BaseModel):
+    session_id: str
+    prompt: str
+
+class EmailReportRequest(BaseModel):
+    session_id: str
+    prompt: str
+    recipient_email: str
+
 class SessionDetailResponse(BaseModel):
     metadata: dict
     messages: list[dict]

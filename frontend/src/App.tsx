@@ -5,9 +5,8 @@ import { FileUploader } from './components/Upload/FileUploader';
 import { StoryCards } from './components/Story/StoryCards';
 import { ChatWindow } from './components/Chat/ChatWindow';
 import { ConnectorModal } from './components/Connectors/ConnectorModal';
-import { NotebookEditor } from './components/Notebooks/NotebookEditor';
-import { getNotebook } from './services/notebookApi';
-import { Notebook } from './types/notebook';
+import { ReportPromptModal } from './components/Report/ReportPromptModal';
+import { ReportView } from './components/Report/ReportView';
 
 import { useSession } from './hooks/useSession';
 import { useStory } from './hooks/useStory';
@@ -26,8 +25,11 @@ const App: React.FC = () => {
   // Generate a stable session ID for the connector modal when no session exists yet
   const [connectorSessionId] = useState(() => uuidv4());
 
-  const { cards, runStory, isLoading: isStoryLoading, clearStory } = useStory(sessionId, precomputedInsights);
+  const { cards, runStory, isLoading: isStoryLoading, clearStory, reportData, runReport, isReportLoading, reportPrompt, reportError } = useStory(sessionId, precomputedInsights);
   const { messages, sendMessage, isLoading: isChatLoading, clearChat, setInitialMessages } = useChat(sessionId);
+
+  // Report prompt modal state
+  const [showReportPromptModal, setShowReportPromptModal] = useState(false);
 
   // Connector state
   const [showConnectorModal, setShowConnectorModal] = useState(false);
@@ -214,16 +216,16 @@ const App: React.FC = () => {
                       </div>
                     )}
                   </div>
-                  {cards.length === 0 && messages.length > 0 && (
+                  {cards.length === 0 && !reportData && messages.length > 0 && (
                     <button 
-                      onClick={runStory}
-                      disabled={isStoryLoading}
+                      onClick={() => setShowReportPromptModal(true)}
+                      disabled={isReportLoading}
                       className="px-5 py-2.5 bg-gradient-to-r from-natwest-primary to-natwest-teal rounded-full text-sm font-bold text-white transition-all disabled:opacity-50 shadow-[0_0_18px_rgba(134,110,255,0.45)] hover:shadow-[0_0_28px_rgba(134,110,255,0.7)] hover:scale-105 active:scale-95 flex items-center gap-2"
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z" />
                       </svg>
-                      {isStoryLoading ? 'Analyzing...' : 'Generate AI Insights'}
+                      {isReportLoading ? 'Generating Report...' : 'Generate Report'}
                     </button>
                   )}
                 </div>
@@ -233,36 +235,47 @@ const App: React.FC = () => {
                       isLoading={isChatLoading} 
                       onSend={sendMessage}
                       suggestedQuestions={meta ? suggestedQuestions : []}
-                      onGenerateInsights={cards.length === 0 && messages.length === 0 ? runStory : undefined}
-                      isStoryLoading={isStoryLoading}
+                      onGenerateInsights={cards.length === 0 && !reportData && messages.length === 0 ? () => setShowReportPromptModal(true) : undefined}
+                      isStoryLoading={isReportLoading}
                     />
                 </div>
               </div>
 
-              {/* Right Side: Insights Area */}
-              {cards.length > 0 && (
+              {/* Right Side: Report or Legacy Insights */}
+              {(reportData || cards.length > 0) && (
                 <div className="w-full md:w-[420px] xl:w-[460px] h-full flex flex-col flex-shrink-0 border-l border-white/10 pl-5 relative">
-                   <div className="flex items-center justify-between mb-4 flex-shrink-0">
-                     <div className="flex items-center gap-2">
-                       <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-natwest-primary to-natwest-teal flex items-center justify-center">
-                         <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z" />
-                         </svg>
-                       </div>
-                       <h3 className="font-bold font-display text-base text-white">AI Insights</h3>
-                     </div>
-                     <button 
-                       onClick={clearStory}
-                       className="text-white/30 hover:text-white/70 transition-colors"
-                     >
-                       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                       </svg>
-                     </button>
-                   </div>
-                   <div className="flex-1 overflow-y-auto custom-scrollbar pb-6 pr-1 space-y-3">
-                     <StoryCards cards={cards} isLoading={isStoryLoading} onDrillIn={sendMessage} />
-                   </div>
+                  {reportData ? (
+                    <ReportView
+                      report={reportData}
+                      sessionId={sessionId!}
+                      prompt={reportPrompt}
+                      onClose={clearStory}
+                    />
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between mb-4 flex-shrink-0">
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-natwest-primary to-natwest-teal flex items-center justify-center">
+                            <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z" />
+                            </svg>
+                          </div>
+                          <h3 className="font-bold font-display text-base text-white">AI Insights</h3>
+                        </div>
+                        <button 
+                          onClick={clearStory}
+                          className="text-white/30 hover:text-white/70 transition-colors"
+                        >
+                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                      <div className="flex-1 overflow-y-auto custom-scrollbar pb-6 pr-1 space-y-3">
+                        <StoryCards cards={cards} isLoading={isStoryLoading} onDrillIn={sendMessage} />
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
             </div>
@@ -277,6 +290,25 @@ const App: React.FC = () => {
           onClose={() => setShowConnectorModal(false)}
           onConnected={handleConnected}
         />
+      )}
+
+      {/* Prompt Modal for Report */}
+      {showReportPromptModal && sessionId && (
+        <ReportPromptModal
+          onClose={() => setShowReportPromptModal(false)}
+          onGenerate={(prompt) => {
+            setShowReportPromptModal(false);
+            runReport(prompt);
+          }}
+          isLoading={isReportLoading}
+        />
+      )}
+
+      {/* Report Error Toast */}
+      {reportError && (
+        <div className="fixed bottom-6 right-6 z-[70] px-4 py-3 rounded-xl shadow-lg text-sm font-medium bg-red-500/20 border border-red-500/30 text-red-300">
+          ⚠️ {reportError}
+        </div>
       )}
     </div>
   );
