@@ -4,6 +4,7 @@ __pycache__/
 *$py.class
 .venv/
 venv/
+venv311/
 venv*/
 env/
 ENV/
@@ -23,6 +24,10 @@ frontend/dist/
 *.swp
 *.swo
 *~
+
+# IDEs
+.vscode/
+.idea/
 
 # Environment & Secrets
 .env
