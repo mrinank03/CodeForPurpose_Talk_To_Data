@@ -1,30 +1,61 @@
 # Python
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
 .venv/
 venv/
 venv311/
+venv*/
+env/
+ENV/
 *.egg-info/
+.pytest_cache/
+
+# Node & Frontend Build
+node_modules/
+dist/
+build/
+frontend/dist/
+.npm/
+
+# IDEs & Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
 
 # IDEs
 .vscode/
 .idea/
 
-# Environment
+# Environment & Secrets
 .env
+.env.*
+!.env.example
 
-# Database and storage (never commit user data)
+# OS Generated
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Database and Storage (Never commit user data)
 *.db
 *.sqlite
+*.sqlite3
 data_dbs/
 chroma_store/
 uploads/
+backend/data/notebooks/*
+!backend/data/notebooks/.gitkeep
 
-# Frontend build
-frontend/dist/
-node_modules/
-
-# Misc
-.DS_Store
+# Misc & Logs
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 .gemini/
