@@ -26,15 +26,16 @@ export const ReportView: React.FC<Props> = ({ report, sessionId, prompt, onClose
 
   const handleDownload = () => {
     const htmlContent = buildPrintHtml(report);
-    const win = window.open('', '_blank', 'width=900,height=700');
+    const win = window.open('', '_blank', 'width=1000,height=800');
     if (!win) return;
     win.document.write(htmlContent);
     win.document.close();
+    // Wait for Chart.js CDN to load + charts to render, then print
     win.addEventListener('load', () => {
       setTimeout(() => {
         win.focus();
         win.print();
-      }, 500);
+      }, 2000); // 2s delay to ensure Chart.js renders all canvases
     });
   };
 
@@ -304,40 +305,139 @@ function renderInline(text: string): string {
     .replace(/`(.+?)`/g, '<code style="background:#f3f4f6;padding:1px 4px;border-radius:3px;font-family:monospace;">$1</code>');
 }
 
+function buildChartJsConfig(card: any): { type: string; config: string } | null {
+  if (!card.chart_data || card.chart_data.length === 0 || card.chart_type === 'none') return null;
+
+  const keys = Object.keys(card.chart_data[0]);
+  const xKey = keys[0];
+  const yKeys = keys.slice(1).filter(k => typeof card.chart_data[0][k] === 'number');
+  if (yKeys.length === 0 && card.chart_type !== 'table') return null;
+
+  const labels = card.chart_data.map((d: any) => String(d[xKey]));
+  const COLORS = ['#7B4FAF', '#00A89A', '#F59E0B', '#EF4444', '#3B82F6', '#8B5CF6'];
+  const BG_COLORS = ['rgba(123,79,175,0.7)', 'rgba(0,168,154,0.7)', 'rgba(245,158,11,0.7)', 'rgba(239,68,68,0.7)', 'rgba(59,130,246,0.7)', 'rgba(139,92,246,0.7)'];
+
+  if (card.chart_type === 'table') {
+    return { type: 'table', config: '' };
+  }
+
+  if (card.chart_type === 'pie') {
+    const yKey = yKeys[0];
+    const data = card.chart_data.map((d: any) => d[yKey]);
+    const config = JSON.stringify({
+      type: 'pie',
+      data: {
+        labels,
+        datasets: [{
+          data,
+          backgroundColor: BG_COLORS.slice(0, data.length),
+          borderColor: COLORS.slice(0, data.length),
+          borderWidth: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'right', labels: { font: { size: 11, family: 'Inter' }, color: '#374151' } }
+        }
+      }
+    });
+    return { type: 'pie', config };
+  }
+
+  // bar or line
+  const datasets = yKeys.map((yKey, i) => ({
+    label: yKey.replace(/_/g, ' '),
+    data: card.chart_data.map((d: any) => d[yKey]),
+    backgroundColor: BG_COLORS[i % BG_COLORS.length],
+    borderColor: COLORS[i % COLORS.length],
+    borderWidth: 2,
+    borderRadius: card.chart_type === 'bar' ? 4 : 0,
+    tension: 0.3,
+    fill: false,
+    pointRadius: card.chart_type === 'line' ? 4 : 0,
+    pointBackgroundColor: '#fff',
+  }));
+
+  const config = JSON.stringify({
+    type: card.chart_type === 'line' ? 'line' : 'bar',
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: { ticks: { font: { size: 10, family: 'Inter' }, color: '#6b7280', maxRotation: 45 }, grid: { display: false } },
+        y: { ticks: { font: { size: 10, family: 'Inter' }, color: '#6b7280' }, grid: { color: '#f1f5f9' }, beginAtZero: true }
+      },
+      plugins: {
+        legend: { labels: { font: { size: 11, family: 'Inter' }, color: '#374151' } }
+      }
+    }
+  });
+  return { type: card.chart_type, config };
+}
+
+function buildTableHtml(card: any): string {
+  if (!card.chart_data || card.chart_data.length === 0) return '';
+  const keys = Object.keys(card.chart_data[0]);
+  const headerCells = keys.map(k => `<th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.06em;border-bottom:2px solid #e5e7eb;background:#f8fafc;">${k.replace(/_/g, ' ')}</th>`).join('');
+  const bodyRows = card.chart_data.slice(0, 20).map((row: any, i: number) => {
+    const cells = keys.map(k => `<td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;${typeof row[k] === 'number' ? 'text-align:right;' : ''}">${row[k] != null ? (typeof row[k] === 'number' ? Number(row[k]).toLocaleString() : String(row[k])) : '—'}</td>`).join('');
+    return `<tr${i % 2 === 1 ? ' style="background:#f8fafc;"' : ''}>${cells}</tr>`;
+  }).join('');
+  return `<table style="width:100%;border-collapse:collapse;font-size:12px;font-family:'Inter',Arial,sans-serif;"><thead><tr>${headerCells}</tr></thead><tbody>${bodyRows}</tbody></table>`;
+}
+
 function buildPrintHtml(report: ReportData): string {
   const date = new Date().toLocaleDateString('en-GB', { day:'2-digit', month:'long', year:'numeric' });
 
-  const anomalyRows = report.anomalies.map(a => {
-    const color = a.severity === 'high' ? '#dc2626' : '#d97706';
-    const bg = a.severity === 'high' ? '#fef2f2' : '#fffbeb';
-    return `<tr style="background:${bg};">
-      <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;">
-        <span style="background:${color};color:#fff;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:700;text-transform:uppercase;">${a.severity}</span>
-      </td>
-      <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;font-weight:600;">${a.column}</td>
-      <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;">${a.message}</td>
-      <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;color:#6b7280;font-size:11px;">${a.method}</td>
-    </tr>`;
+  // Build insight chart cards
+  const ACCENT_BORDERS = ['#7B4FAF', '#00A89A', '#F59E0B', '#EF4444', '#3B82F6'];
+  const chartCards = report.insights.map((card, i) => {
+    const chartInfo = buildChartJsConfig(card);
+    const borderColor = ACCENT_BORDERS[i % ACCENT_BORDERS.length];
+
+    let chartContent = '';
+    if (chartInfo && chartInfo.type === 'table') {
+      chartContent = buildTableHtml(card);
+    } else if (chartInfo) {
+      chartContent = `<div style="height:280px;padding:8px;"><canvas id="chart-${i}"></canvas></div>`;
+    } else {
+      chartContent = '<p style="color:#9ca3af;text-align:center;padding:20px;">No chart data available</p>';
+    }
+
+    return `
+    <div class="card">
+      <div style="height:4px;background:${borderColor};"></div>
+      <div class="card-head" style="background:#faf5ff;">
+        <span>📊</span>
+        <span class="card-title" style="color:${borderColor};">${card.headline || 'Chart Insight'}</span>
+      </div>
+      <div class="card-body">
+        ${card.explanation ? `<p style="font-size:12px;color:#6b7280;margin-bottom:12px;">${card.explanation}</p>` : ''}
+        ${chartContent}
+      </div>
+    </div>`;
   }).join('');
 
-  const statsRows = report.summary.filter(s => s.type === 'numeric').map(s => `
-    <tr>
-      <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;font-weight:600;color:#1f2937;">${s.display_name}</td>
-      <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:right;">${s.min?.toLocaleString() ?? '—'}</td>
-      <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:right;">${s.max?.toLocaleString() ?? '—'}</td>
-      <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:right;font-weight:600;color:#4f46e5;">${s.mean?.toLocaleString() ?? '—'}</td>
-      <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:right;">${s.median?.toLocaleString() ?? '—'}</td>
-      <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:right;">${s.std_dev?.toLocaleString() ?? '—'}</td>
-      <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:right;color:${(s.null_pct ?? 0) > 10 ? '#dc2626':'#6b7280'};">${s.null_pct}%</td>
-    </tr>`).join('');
-
-
+  // Build Chart.js initialization script
+  const chartScripts = report.insights.map((card, i) => {
+    const chartInfo = buildChartJsConfig(card);
+    if (!chartInfo || chartInfo.type === 'table') return '';
+    return `
+      (function() {
+        var ctx = document.getElementById('chart-${i}');
+        if (ctx) { new Chart(ctx, ${chartInfo.config}); }
+      })();`;
+  }).join('\n');
 
   return `<!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8">
 <title>DataLens AI Report — ${date}</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"><\/script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -355,15 +455,9 @@ function buildPrintHtml(report: ReportData): string {
   .card-head { padding:14px 20px; border-bottom:1px solid #e2e8f0;
     display:flex; align-items:center; gap:10px; }
   .card-head.purple { background:#f5f3ff; }
-  .card-head.red    { background:#fef2f2; }
-  .card-head.blue   { background:#eff6ff; }
-  .card-head.violet { background:#faf5ff; }
   .card-head.green  { background:#f0fdf4; }
   .card-title { font-size:14px; font-weight:700; }
   .card-title.purple { color:#6d28d9; }
-  .card-title.red    { color:#dc2626; }
-  .card-title.blue   { color:#1d4ed8; }
-  .card-title.violet { color:#7c3aed; }
   .card-title.green  { color:#166534; }
   .card-body { padding:20px; }
   .narrative p { margin:0 0 10px; color:#374151; }
@@ -371,12 +465,6 @@ function buildPrintHtml(report: ReportData): string {
   .narrative li { margin-bottom:6px; color:#374151; }
   .narrative strong { color:#3b0764; font-weight:600; }
   .narrative p:last-child { margin-bottom:0; }
-  .clean-table { width:100%; border-collapse:collapse; font-size:12px; }
-  .clean-table thead th { padding:9px 12px; text-align:left; font-size:10px;
-    font-weight:700; color:#6b7280; text-transform:uppercase; letter-spacing:0.06em;
-    border-bottom:2px solid #e5e7eb; background:#f8fafc; }
-  .clean-table tbody td { padding:9px 12px; border-bottom:1px solid #f1f5f9; }
-  .clean-table tbody tr:nth-child(even) td { background:#f8fafc; }
   .no-issue { color:#166534; font-weight:500; font-size:13px; }
   .footer { text-align:center; padding:20px 0 4px; color:#94a3b8; font-size:11px; }
   @media print {
@@ -384,6 +472,7 @@ function buildPrintHtml(report: ReportData): string {
     .page { padding:0; max-width:100%; }
     .card { box-shadow:none; }
     .page-header,.card-head { -webkit-print-color-adjust:exact; }
+    canvas { max-width:100% !important; }
   }
 </style>
 </head>
@@ -395,7 +484,7 @@ function buildPrintHtml(report: ReportData): string {
     <div class="badges">
       <span class="badge">${report.metadata.total_rows.toLocaleString()} Rows</span>
       <span class="badge">${report.metadata.total_columns} Columns Analysed</span>
-      <span class="badge">${report.anomalies.length} Anomalies</span>
+      <span class="badge">${report.insights.length} Charts</span>
       <span class="badge">${date}</span>
     </div>
   </div>
@@ -409,51 +498,17 @@ function buildPrintHtml(report: ReportData): string {
     <div class="card-body narrative">${markdownToHtml(report.narrative)}</div>
   </div>
 
-  <!-- Anomaly Detection Card -->
-  <div class="card">
-    <div class="card-head ${report.anomalies.length > 0 ? 'red' : 'green'}">
-      <span>${report.anomalies.length > 0 ? '⚠️' : '✅'}</span>
-      <span class="card-title ${report.anomalies.length > 0 ? 'red' : 'green'}">
-        Anomaly Detection — ${report.anomalies.length > 0
-          ? report.anomalies.length + ' issue' + (report.anomalies.length > 1 ? 's' : '') + ' found'
-          : 'All Clear'}
-      </span>
-    </div>
-    <div class="card-body" style="padding:${report.anomalies.length > 0 ? '0' : '20px'};">
-      ${report.anomalies.length > 0 ? `
-      <table class="clean-table">
-        <thead><tr>
-          <th style="width:90px;">Severity</th>
-          <th>Column / Metric</th>
-          <th>Finding</th>
-          <th style="width:150px;">Method</th>
-        </tr></thead>
-        <tbody>${anomalyRows}</tbody>
-      </table>` : `<p class="no-issue">No anomalies detected — data looks clean and consistent.</p>`}
-    </div>
-  </div>
-
-  <!-- Statistical Summary Card -->
-  <div class="card">
-    <div class="card-head blue">
-      <span>📈</span>
-      <span class="card-title blue">Statistical Summary</span>
-    </div>
-    <div class="card-body" style="padding:0;">
-      <table class="clean-table">
-        <thead><tr>
-          <th>Column</th>
-          <th style="text-align:right">Min</th><th style="text-align:right">Max</th>
-          <th style="text-align:right">Mean</th><th style="text-align:right">Median</th>
-          <th style="text-align:right">Std Dev</th><th style="text-align:right">Nulls %</th>
-        </tr></thead>
-        <tbody>${statsRows || '<tr><td colspan="7" style="padding:16px;text-align:center;color:#9ca3af;">No numeric columns selected</td></tr>'}</tbody>
-      </table>
-    </div>
-  </div>
+  <!-- Chart Insight Cards -->
+  ${chartCards}
 
   <div class="footer">Generated by DataLens · AI-Powered Analytics Platform · ${date}</div>
 </div>
+
+<script>
+  window.addEventListener('load', function() {
+    ${chartScripts}
+  });
+<\/script>
 </body>
 </html>`;
 }
