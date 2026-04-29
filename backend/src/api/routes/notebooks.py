@@ -159,15 +159,15 @@ async def _run_prompt_cell(session_id: str, prompt: str) -> dict:
     try:
         from src.agents.intent_classifier import classify_intent
         from src.agents.schema_resolver import resolve_schema
-        from src.agents.sql_planner import plan_query
+        from src.agents.sql_planner import generate_sql_plan
         from src.agents.executor import execute_with_retry
         from src.agents.narrator import narrate_result
 
         intent = classify_intent(prompt)
         schema = resolve_schema(prompt, session_id)
-        plan = plan_query(prompt, schema, intent, [])
-        sql = plan.get("sql", "")
-        chart_type = plan.get("chart_type", "table")
+        plan_obj = generate_sql_plan(prompt, intent, schema, [])
+        sql = plan_obj.sql
+        chart_type = plan_obj.chart_type
 
         exec_result = execute_with_retry(prompt, sql, session_id, schema.full_schema_str)
 
