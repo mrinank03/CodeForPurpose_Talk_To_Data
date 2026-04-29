@@ -64,15 +64,22 @@ async def generate_report(req: ReportRequest):
 
 @router.post("/report/email")
 async def email_report(req: EmailReportRequest):
-    """Generate a report and email it to the specified recipient."""
+    """Generate a report, build PDF with charts, and email it to the recipient."""
+    from src.story.pdf_report import generate_report_pdf
+
     df = _load_session_df(req.session_id)
     report = await generate_full_report(req.session_id, df, req.prompt)
 
+    # Generate PDF with embedded charts
+    pdf_bytes = generate_report_pdf(report)
+
+    # Build email HTML (summary only — charts are in the PDF)
     html = build_report_html(report)
     result = send_report_email(
         recipient=req.recipient_email,
         subject="📊 DataLens AI Report",
         html_body=html,
+        pdf_bytes=pdf_bytes,
     )
 
     if not result["success"]:
@@ -85,3 +92,4 @@ async def email_report(req: EmailReportRequest):
         raise HTTPException(status_code=status_code, detail=msg)
 
     return result
+
