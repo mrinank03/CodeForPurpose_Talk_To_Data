@@ -1,5 +1,6 @@
 import React from 'react';
 import { ConnectorBadge } from '../Connectors/ConnectorBadge';
+import { NotebookList } from '../Notebooks/NotebookList';
 
 interface SessionItem {
   id: string;
@@ -18,6 +19,9 @@ interface SidebarProps {
   onOpenConnector: () => void;
   connectorInfo: { connectionName: string; dbType: string; lastSyncedAt: string | null } | null;
   onDisconnect: () => void;
+  activeNotebookId?: string | null;
+  onOpenNotebook?: (id: string) => void;
+  notebookRefreshTrigger?: number;
 }
 
 function formatSessionName(filename: string): string {
@@ -47,7 +51,10 @@ function formatRelativeDate(timestamp: string): string {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ sessions, activeSessionId, onSelectSession, onNewSession, isCollapsed, onOpenConnector, connectorInfo, onDisconnect }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ 
+  sessions, activeSessionId, onSelectSession, onNewSession, isCollapsed, onOpenConnector, connectorInfo, onDisconnect,
+  activeNotebookId = null, onOpenNotebook = () => {}, notebookRefreshTrigger = 0
+}) => {
   if (isCollapsed) return null;
 
   return (
@@ -109,6 +116,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ sessions, activeSessionId, onS
             );
           })}
         </div>
+        
+        <NotebookList 
+          activeNotebookId={activeNotebookId}
+          onOpenNotebook={onOpenNotebook}
+          refreshTrigger={notebookRefreshTrigger}
+        />
       </div>
 
       {/* Database Connector Section */}

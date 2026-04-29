@@ -7,6 +7,9 @@ import { ChatWindow } from './components/Chat/ChatWindow';
 import { ConnectorModal } from './components/Connectors/ConnectorModal';
 import { ReportPromptModal } from './components/Report/ReportPromptModal';
 import { ReportView } from './components/Report/ReportView';
+import { NotebookEditor } from './components/Notebooks/NotebookEditor';
+import { getNotebook } from './services/notebookApi';
+import { Notebook } from './types/notebook';
 
 import { useSession } from './hooks/useSession';
 import { useStory } from './hooks/useStory';
@@ -39,12 +42,21 @@ const App: React.FC = () => {
     lastSyncedAt: string | null;
   } | null>(null);
 
+  // Notebook state
+  const [activeView, setActiveView] = useState<'chat' | 'notebook'>('chat');
+  const [activeNotebookId, setActiveNotebookId] = useState<string | null>(null);
+  const [activeNotebookData, setActiveNotebookData] = useState<Notebook | null>(null);
+  const [notebookRefreshTrigger, setNotebookRefreshTrigger] = useState(0);
+
   // Initial load
   useEffect(() => {
     fetchSessions();
   }, []);
 
   const handleSelectSession = async (id: string) => {
+    setActiveView('chat');
+    setActiveNotebookId(null);
+    setActiveNotebookData(null);
     const data = await loadSession(id);
     if (data && data.messages) {
       setInitialMessages(data.messages);
@@ -60,6 +72,9 @@ const App: React.FC = () => {
     clearStory();
     setSuggestedQuestions([]);
     setConnectorInfo(null);
+    setActiveView('chat');
+    setActiveNotebookId(null);
+    setActiveNotebookData(null);
   };
 
   const handleUpload = async (file: File) => {
@@ -75,6 +90,12 @@ const App: React.FC = () => {
     // Activate the session so chat UI appears
     const activeId = sessionId || connectorSessionId;
     activateSession(activeId);
+
+    // If we're inside a notebook without a session, attach this session to the notebook automatically
+    if (activeView === 'notebook' && activeNotebookData && !activeNotebookData.session_id) {
+       const nb = { ...activeNotebookData, session_id: activeId };
+       setActiveNotebookData(nb);
+    }
   };
 
   const handleDisconnect = async () => {
@@ -86,6 +107,26 @@ const App: React.FC = () => {
       }
     }
     setConnectorInfo(null);
+  };
+
+  const handleOpenNotebook = async (id: string) => {
+    try {
+      const data = await getNotebook(id);
+      setActiveNotebookData(data);
+      setActiveNotebookId(id);
+      setActiveView('notebook');
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleBackToChat = () => {
+    setActiveView('chat');
+  };
+
+  const handleUpdateSummary = () => {
+    // Increment trigger so Sidebar re-fetches list to update title/cell count
+    setNotebookRefreshTrigger(prev => prev + 1);
   };
 
   // Determine if chat should be shown:
@@ -104,6 +145,9 @@ const App: React.FC = () => {
         onOpenConnector={() => setShowConnectorModal(true)}
         connectorInfo={connectorInfo}
         onDisconnect={handleDisconnect}
+        activeNotebookId={activeNotebookId}
+        onOpenNotebook={handleOpenNotebook}
+        notebookRefreshTrigger={notebookRefreshTrigger}
       />
       
       <div className="flex-1 flex flex-col h-full overflow-hidden relative min-w-0">

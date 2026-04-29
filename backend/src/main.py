@@ -7,7 +7,7 @@ from slowapi.errors import RateLimitExceeded
 from dotenv import load_dotenv
 
 from src.data.session_store import init_db
-from src.api.routes import upload, query, story, sessions, connectors
+from src.api.routes import upload, query, story, sessions, connectors, notebooks
 
 load_dotenv()
 
@@ -47,6 +47,7 @@ app.include_router(query.router, prefix="/api", tags=["Query"])
 app.include_router(story.router, prefix="/api", tags=["Story"])
 app.include_router(sessions.router, prefix="/api", tags=["Sessions"])
 app.include_router(connectors.router, prefix="/api", tags=["Connectors"])
+app.include_router(notebooks.router, prefix="/api", tags=["Notebooks"])
 
 # Global exception handler to ensure CORS headers are sent even on crashes
 from fastapi.responses import JSONResponse
