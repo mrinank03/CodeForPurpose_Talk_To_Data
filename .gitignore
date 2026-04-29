@@ -3,7 +3,12 @@ __pycache__/
 *.pyc
 .venv/
 venv/
+venv311/
 *.egg-info/
+
+# IDEs
+.vscode/
+.idea/
 
 # Environment
 .env
