@@ -9,7 +9,8 @@ export const useStory = (sessionId: string | null, precomputedInsights: StoryCar
   // Report state
   const [reportData, setReportData] = useState<ReportData | null>(null);
   const [isReportLoading, setIsReportLoading] = useState(false);
-  const [reportColumns, setReportColumns] = useState<string[]>([]);
+  const [reportPrompt, setReportPrompt] = useState<string>('');
+  const [reportError, setReportError] = useState<string | null>(null);
 
   const runStory = async () => {
     if (!sessionId) {
@@ -41,25 +42,27 @@ export const useStory = (sessionId: string | null, precomputedInsights: StoryCar
     }
   };
 
-  const runReport = async (selectedColumns: string[]) => {
+  const runReport = async (prompt: string) => {
     if (!sessionId) {
       console.warn('[useStory] No sessionId for report, aborting.');
       return;
     }
 
     setIsReportLoading(true);
-    setReportColumns(selectedColumns);
-    console.log('[useStory] Generating report for columns:', selectedColumns);
+    setReportError(null);
+    setReportPrompt(prompt);
+    console.log('[useStory] Generating report for prompt:', prompt);
 
     try {
       const res = await api.post('/api/report', {
         session_id: sessionId,
-        selected_columns: selectedColumns,
+        prompt: prompt,
       });
       console.log('[useStory] Report generated:', res.data);
       setReportData(res.data);
-    } catch (err) {
+    } catch (err: any) {
       console.error('[useStory] Report generation failed:', err);
+      setReportError(err.response?.data?.detail || err.message || 'Failed to generate report');
       setReportData(null);
     } finally {
       setIsReportLoading(false);
@@ -69,11 +72,12 @@ export const useStory = (sessionId: string | null, precomputedInsights: StoryCar
   const clearStory = () => {
     setCards([]);
     setReportData(null);
-    setReportColumns([]);
+    setReportPrompt('');
+    setReportError(null);
   };
 
   return {
     cards, runStory, isLoading, clearStory,
-    reportData, runReport, isReportLoading, reportColumns,
+    reportData, runReport, isReportLoading, reportPrompt, reportError,
   };
 };

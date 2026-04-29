@@ -56,9 +56,9 @@ async def get_available_columns(session_id: str):
 
 @router.post("/report")
 async def generate_report(req: ReportRequest):
-    """Generate a full AI report with anomaly detection for selected columns."""
+    """Generate a full AI report based on user prompt."""
     df = _load_session_df(req.session_id)
-    report = generate_full_report(df, req.selected_columns)
+    report = await generate_full_report(req.session_id, df, req.prompt)
     return report
 
 
@@ -66,7 +66,7 @@ async def generate_report(req: ReportRequest):
 async def email_report(req: EmailReportRequest):
     """Generate a report and email it to the specified recipient."""
     df = _load_session_df(req.session_id)
-    report = generate_full_report(df, req.selected_columns)
+    report = await generate_full_report(req.session_id, df, req.prompt)
 
     html = build_report_html(report)
     result = send_report_email(

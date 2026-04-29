@@ -5,7 +5,7 @@ import { FileUploader } from './components/Upload/FileUploader';
 import { StoryCards } from './components/Story/StoryCards';
 import { ChatWindow } from './components/Chat/ChatWindow';
 import { ConnectorModal } from './components/Connectors/ConnectorModal';
-import { ColumnSelectorModal } from './components/Report/ColumnSelectorModal';
+import { ReportPromptModal } from './components/Report/ReportPromptModal';
 import { ReportView } from './components/Report/ReportView';
 
 import { useSession } from './hooks/useSession';
@@ -25,11 +25,11 @@ const App: React.FC = () => {
   // Generate a stable session ID for the connector modal when no session exists yet
   const [connectorSessionId] = useState(() => uuidv4());
 
-  const { cards, runStory, isLoading: isStoryLoading, clearStory, reportData, runReport, isReportLoading, reportColumns } = useStory(sessionId, precomputedInsights);
+  const { cards, runStory, isLoading: isStoryLoading, clearStory, reportData, runReport, isReportLoading, reportPrompt, reportError } = useStory(sessionId, precomputedInsights);
   const { messages, sendMessage, isLoading: isChatLoading, clearChat, setInitialMessages } = useChat(sessionId);
 
-  // Report column selector modal state
-  const [showColumnSelector, setShowColumnSelector] = useState(false);
+  // Report prompt modal state
+  const [showReportPromptModal, setShowReportPromptModal] = useState(false);
 
   // Connector state
   const [showConnectorModal, setShowConnectorModal] = useState(false);
@@ -163,14 +163,14 @@ const App: React.FC = () => {
                   </div>
                   {cards.length === 0 && !reportData && messages.length > 0 && (
                     <button 
-                      onClick={() => setShowColumnSelector(true)}
+                      onClick={() => setShowReportPromptModal(true)}
                       disabled={isReportLoading}
                       className="px-5 py-2.5 bg-gradient-to-r from-natwest-primary to-natwest-teal rounded-full text-sm font-bold text-white transition-all disabled:opacity-50 shadow-[0_0_18px_rgba(134,110,255,0.45)] hover:shadow-[0_0_28px_rgba(134,110,255,0.7)] hover:scale-105 active:scale-95 flex items-center gap-2"
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z" />
                       </svg>
-                      {isReportLoading ? 'Generating Report...' : 'Generate AI Insights'}
+                      {isReportLoading ? 'Generating Report...' : 'Generate Report'}
                     </button>
                   )}
                 </div>
@@ -180,7 +180,7 @@ const App: React.FC = () => {
                       isLoading={isChatLoading} 
                       onSend={sendMessage}
                       suggestedQuestions={meta ? suggestedQuestions : []}
-                      onGenerateInsights={cards.length === 0 && !reportData && messages.length === 0 ? () => setShowColumnSelector(true) : undefined}
+                      onGenerateInsights={cards.length === 0 && !reportData && messages.length === 0 ? () => setShowReportPromptModal(true) : undefined}
                       isStoryLoading={isReportLoading}
                     />
                 </div>
@@ -193,7 +193,7 @@ const App: React.FC = () => {
                     <ReportView
                       report={reportData}
                       sessionId={sessionId!}
-                      selectedColumns={reportColumns}
+                      prompt={reportPrompt}
                       onClose={clearStory}
                     />
                   ) : (
@@ -237,17 +237,23 @@ const App: React.FC = () => {
         />
       )}
 
-      {/* Column Selector Modal for Report */}
-      {showColumnSelector && sessionId && (
-        <ColumnSelectorModal
-          sessionId={sessionId}
-          onClose={() => setShowColumnSelector(false)}
-          onGenerate={(cols) => {
-            setShowColumnSelector(false);
-            runReport(cols);
+      {/* Prompt Modal for Report */}
+      {showReportPromptModal && sessionId && (
+        <ReportPromptModal
+          onClose={() => setShowReportPromptModal(false)}
+          onGenerate={(prompt) => {
+            setShowReportPromptModal(false);
+            runReport(prompt);
           }}
           isLoading={isReportLoading}
         />
+      )}
+
+      {/* Report Error Toast */}
+      {reportError && (
+        <div className="fixed bottom-6 right-6 z-[70] px-4 py-3 rounded-xl shadow-lg text-sm font-medium bg-red-500/20 border border-red-500/30 text-red-300">
+          ⚠️ {reportError}
+        </div>
       )}
     </div>
   );

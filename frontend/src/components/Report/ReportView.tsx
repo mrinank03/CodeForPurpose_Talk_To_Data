@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ReportData, AnomalyAlert, ColumnStat, DataSample, StoryCard as StoryCardType } from '../../types/index';
+import { ReportData, AnomalyAlert, ColumnStat, StoryCard as StoryCardType } from '../../types/index';
 import { MiniChart } from '../Charts/MiniChart';
 import { EmailModal } from './EmailModal';
 import api from '../../services/api';
@@ -7,7 +7,7 @@ import api from '../../services/api';
 interface Props {
   report: ReportData;
   sessionId: string;
-  selectedColumns: string[];
+  prompt: string;
   onClose: () => void;
 }
 
@@ -19,7 +19,7 @@ const ACCENT_COLORS = [
   'from-sky-400 to-blue-500',
 ];
 
-export const ReportView: React.FC<Props> = ({ report, sessionId, selectedColumns, onClose }) => {
+export const ReportView: React.FC<Props> = ({ report, sessionId, prompt, onClose }) => {
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [emailStatus, setEmailStatus] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
@@ -44,7 +44,7 @@ export const ReportView: React.FC<Props> = ({ report, sessionId, selectedColumns
     try {
       await api.post('/api/report/email', {
         session_id: sessionId,
-        selected_columns: selectedColumns,
+        prompt: prompt,
         recipient_email: email,
       });
       setEmailStatus({ type: 'success', msg: `Report sent to ${email}` });
@@ -214,37 +214,7 @@ export const ReportView: React.FC<Props> = ({ report, sessionId, selectedColumns
           </div>
         ))}
 
-        {/* ── Data Sample ── */}
-        {report.data_sample && report.data_sample.rows.length > 0 && (
-          <div className="bg-[#151020] border border-white/10 rounded-xl overflow-hidden">
-            <div className="h-1 w-full bg-gradient-to-r from-violet-500 to-purple-600" />
-            <div className="p-4">
-              <h4 className="font-bold font-display text-white text-sm mb-3">📋 Data Sample (first {report.data_sample.rows.length} rows)</h4>
-              <div className="overflow-x-auto">
-                <table className="w-full text-[10px] border-collapse">
-                  <thead>
-                    <tr className="border-b border-white/10">
-                      {report.data_sample.columns.map((col) => (
-                        <th key={col} className="text-left py-1.5 px-2 text-white/40 font-medium whitespace-nowrap">{col.replace(/_/g,' ')}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {report.data_sample.rows.map((row, i) => (
-                      <tr key={i} className="border-b border-white/[0.03] hover:bg-white/[0.02]">
-                        {report.data_sample.columns.map((col) => (
-                          <td key={col} className="py-1.5 px-2 text-white/50 whitespace-nowrap max-w-[120px] truncate">
-                            {row[col] === null || row[col] === undefined ? <span className="text-white/20">—</span> : String(row[col])}
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
+
       </div>
 
       {/* Email success/error toast */}

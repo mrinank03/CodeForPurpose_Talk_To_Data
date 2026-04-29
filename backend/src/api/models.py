@@ -20,11 +20,11 @@ class StoryRequest(BaseModel):
 
 class ReportRequest(BaseModel):
     session_id: str
-    selected_columns: list[str]
+    prompt: str
 
 class EmailReportRequest(BaseModel):
     session_id: str
-    selected_columns: list[str]
+    prompt: str
     recipient_email: str
 
 class SessionDetailResponse(BaseModel):

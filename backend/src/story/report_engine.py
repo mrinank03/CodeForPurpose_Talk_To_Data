@@ -247,75 +247,145 @@ def generate_report_charts(df: pd.DataFrame, columns: list[str]) -> list[dict]:
 # LLM Executive Summary
 # ──────────────────────────────────────────────────────────────────────────────
 
-def generate_narrative(stats: list[dict], anomalies: list[dict], charts: list[dict]) -> str:
-    """Use the LLM to write an executive summary of the report findings."""
+def generate_narrative(prompt: str, charts: list[dict]) -> str:
+    """Use the LLM to write an executive summary based on the prompt and the retrieved charts."""
     try:
         from src.utils.llm_factory import get_narrator_llm
         from langchain_core.prompts import PromptTemplate
 
         context = {
-            "stats_summary": json.dumps(stats[:10], default=str)[:3000],
-            "anomaly_count": len(anomalies),
-            "anomaly_details": json.dumps(anomalies[:5], default=str)[:2000],
+            "original_prompt": prompt,
             "chart_headlines": [c["headline"] for c in charts],
+            "chart_summaries": json.dumps([{
+                "headline": c["headline"],
+                "explanation": c["explanation"],
+                "data_points": len(c["chart_data"]) if c.get("chart_data") else 0
+            } for c in charts])
         }
 
-        prompt = PromptTemplate.from_template(
-            "You are a senior data analyst writing an executive summary for a business report. "
-            "Based on the following analysis results, write a clear, concise 3-5 paragraph summary "
-            "that highlights the key findings, anomalies, and actionable insights.\n\n"
-            "Statistical Summary:\n{stats_summary}\n\n"
-            "Anomalies Found: {anomaly_count}\n{anomaly_details}\n\n"
-            "Key Charts: {chart_headlines}\n\n"
-            "Write the summary in professional business language. "
-            "Use bullet points for key metrics. "
-            "Highlight any anomalies or risks in bold. "
-            "Keep it under 300 words. No markdown code blocks."
+        template = (
+            "You are a senior data analyst. The user requested a report with the following prompt: '{original_prompt}'.\n"
+            "We have queried the dataset and generated the following analytical charts to answer this:\n"
+            "{chart_summaries}\n\n"
+            "Write a cohesive, professional 2-3 paragraph Executive Summary for this report. "
+            "Synthesize the findings, highlight the most important metrics, and address the user's original request. "
+            "Do NOT mention 'based on the charts' or 'the data shows'. Just state the facts professionally."
         )
-
+        
+        prompt_obj = PromptTemplate.from_template(template)
         llm = get_narrator_llm()
-        res = (prompt | llm).invoke(context)
+        res = (prompt_obj | llm).invoke(context)
         return res.content.strip()
     except Exception as e:
         print(f"[ReportEngine] Narrative generation failed: {e}")
-        return "Executive summary could not be generated. Please review the charts and anomaly alerts above for key insights."
+        return "Executive summary could not be generated. Please review the charts below for key insights."
 
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Full Report Generator
 # ──────────────────────────────────────────────────────────────────────────────
 
-def generate_full_report(df: pd.DataFrame, selected_columns: list[str]) -> dict:
+async def generate_full_report(session_id: str, df: pd.DataFrame, user_prompt: str) -> dict:
     """
-    Master function: generates the complete report payload.
-    Returns { summary, anomalies, insights, narrative, metadata }.
+    Master function: generates the complete report payload using agentic decomposition.
+    Returns { insights, narrative, metadata }.
     """
-    # Filter to valid columns only
-    valid_cols = [c for c in selected_columns if c in df.columns]
-    if not valid_cols:
-        return {"error": "No valid columns selected"}
+    from src.utils.llm_factory import get_narrator_llm
+    from langchain_core.prompts import PromptTemplate
+    
+    from src.agents.intent_classifier import classify_intent
+    from src.agents.schema_resolver import resolve_schema
+    from src.agents.sql_planner import generate_sql_plan
+    from src.agents.executor import execute_with_retry
+    from src.agents.validator import validate_execution
+    from src.agents.narrator import narrate_result
+    
+    # 1. Prompt Decomposition
+    # Break the user's prompt into 3 distinct analytical questions.
+    try:
+        decomp_prompt = PromptTemplate.from_template(
+            "You are an AI reporting agent. The user wants a report based on this prompt: '{prompt}'.\n"
+            "Available columns in the dataset: {columns}\n\n"
+            "Break this request down into exactly 3 distinct, specific analytical questions that can be answered with SQL. "
+            "Return ONLY a JSON array of 3 strings. Example: [\"What is the total revenue by region?\", \"What are the top 5 products?\"]"
+        )
+        llm = get_narrator_llm()
+        decomp_res = (decomp_prompt | llm).invoke({
+            "prompt": user_prompt,
+            "columns": list(df.columns)
+        })
+        
+        import re
+        import json
+        json_match = re.search(r'\[.*\]', decomp_res.content, re.DOTALL)
+        if json_match:
+            questions = json.loads(json_match.group(0))
+        else:
+            questions = [
+                f"Breakdown of {user_prompt}",
+                "Overall trends over time",
+                "Top segments or categories"
+            ]
+    except Exception as e:
+        print(f"[ReportEngine] Decomposition failed: {e}")
+        questions = ["Show an overview of the data", "Show top categories", "Show key metrics"]
 
-    # 1. Statistical summary
-    stats = generate_column_stats(df, valid_cols)
+    # Limit to 3
+    questions = questions[:3]
+    
+    # 2. Execute Queries
+    # Since we don't have async process_query easily accessible here without event loop issues,
+    # we use asyncio.run or standard sync if it's already sync.
+    # process_query is async, but we are inside a sync function? Wait, generate_full_report is called synchronously.
+    # Actually, we can just use the existing generate_report_charts logic but powered by the LLM?
+    # No, wait, let's just make it simpler if process_query is strictly async and we are in a sync function.
+    
+    # Wait, the user specifically mentioned "3 distinct specific analytical queries".
+    # I can use asyncio.run since we are in a ThreadPoolExecutor from FastAPI.
+    
+    charts = []
+    
+    for q in questions:
+        try:
+            print(f"[ReportEngine] Processing question: {q}")
+            intent = classify_intent(q)
+            resolved_schema = resolve_schema(q, session_id)
+            plan = generate_sql_plan(q, intent, resolved_schema, history=[])
+            
+            if not plan.sql:
+                continue
+                
+            exec_result = execute_with_retry(q, plan.sql, session_id, resolved_schema.full_schema_str)
+            val_result = validate_execution(exec_result, resolved_schema, intent)
+            
+            if val_result.answer_text: # Error or empty
+                continue
+                
+            ans, final_chart_type = narrate_result(q, val_result.data, val_result.columns_used, plan.chart_type)
+            
+            charts.append({
+                "headline": ans,
+                "explanation": "", 
+                "chart_type": final_chart_type,
+                "chart_data": val_result.data,
+                "sql": exec_result.final_sql
+            })
+        except Exception as e:
+            print(f"[ReportEngine] Query failed for '{q}': {e}")
+            continue
 
-    # 2. Anomaly detection
-    anomalies = detect_anomalies(df, valid_cols)
-
-    # 3. Chart insights
-    charts = generate_report_charts(df, valid_cols)
-
-    # 4. Executive narrative
-    narrative = generate_narrative(stats, anomalies, charts)
-
+    # 3. Generate Narrative
+    narrative = generate_narrative(user_prompt, charts)
 
     return {
         "metadata": {
             "total_rows": len(df),
-            "total_columns": len(valid_cols),
-            "columns_analyzed": valid_cols,
+            "total_columns": len(df.columns),
+            "columns_analyzed": list(df.columns),
+            "prompt": user_prompt
         },
-        "summary": stats,
-        "anomalies": anomalies,
+        "summary": [], # Removed old static stats
+        "anomalies": [], # Removed anomalies
         "insights": charts,
         "narrative": narrative,
     }
