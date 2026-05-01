@@ -35,6 +35,31 @@ async def process_query(request: Request, body: QueryRequest):
     resolved_schema = resolve_schema(question, session_id)
     cols = [c["column_name"] for c in resolved_schema.relevant_columns]
     
+    # GATE 1: Schema Rejection
+    MIN_SCHEMA_SCORE = 0.10
+    if resolved_schema.schema_score < MIN_SCHEMA_SCORE:
+        ans = "This question does not appear related to the uploaded dataset. Please ask about columns in this table."
+        save_message(session_id, role="assistant", content=ans, intent=intent)
+        return QueryResponse(
+            answer=ans, sql=None, chart_type="none", chart_data=None, 
+            confidence="Low", confidence_score=0.0,
+            confidence_breakdown={"schema_score": resolved_schema.schema_score},
+            abstained=True, warning="Schema match score too low.",
+            columns_used=[], intent=intent, error=None
+        )
+        
+    # GATE 2: Intent Sanity
+    if intent == "general" and resolved_schema.schema_score < 0.3:
+        ans = "I'm not sure how to answer that from the data. Could you clarify your question?"
+        save_message(session_id, role="assistant", content=ans, intent=intent)
+        return QueryResponse(
+            answer=ans, sql=None, chart_type="none", chart_data=None, 
+            confidence="Low", confidence_score=0.0,
+            confidence_breakdown={"schema_score": resolved_schema.schema_score},
+            abstained=True, warning="General intent with weak schema match.",
+            columns_used=[], intent=intent, error=None
+        )
+    
     # 4. Plan SQL
     plan = generate_sql_plan(question, intent, resolved_schema, history)
     
@@ -42,12 +67,17 @@ async def process_query(request: Request, body: QueryRequest):
     if not plan.sql:
         ans = "I couldn't figure out the best way to answer that. Could you rephrase your question?"
         save_message(session_id, role="assistant", content=ans, intent=intent)
-        return QueryResponse(answer=ans, sql=None, chart_type="none", chart_data=None, confidence="Low", columns_used=[], intent=intent, error=None)
+        return QueryResponse(
+            answer=ans, sql=None, chart_type="none", chart_data=None, 
+            confidence="Low", confidence_score=0.0,
+            abstained=True, warning="SQL Planning failed.",
+            columns_used=[], intent=intent, error=None
+        )
         
     exec_result = execute_with_retry(question, plan.sql, session_id, resolved_schema.full_schema_str)
     
-    # 6. Validate
-    val_result = validate_execution(exec_result, resolved_schema, intent)
+    # 6. Validate (first pass to get row counts and early confidence, assume grounding=1.0 for now)
+    val_result = validate_execution(exec_result, resolved_schema, intent, grounding_score=1.0)
     
     if val_result.answer_text: # Empty or error
         ans = val_result.answer_text
@@ -58,25 +88,39 @@ async def process_query(request: Request, body: QueryRequest):
             chart_type="none",
             chart_data=None,
             confidence=val_result.confidence.value,
+            confidence_score=val_result.confidence_score,
+            confidence_breakdown=val_result.confidence_breakdown,
+            retry_count=exec_result.attempts_used - 1,
             columns_used=cols,
             intent=intent,
             error=exec_result.error_message
         )
         
-    # 7. Narrate
-    ans, final_chart_type = narrate_result(question, val_result.data, val_result.columns_used, plan.chart_type)
+    # 7. Narrate and verify Grounding
+    ans, final_chart_type, grounding_score = narrate_result(question, val_result.data, val_result.columns_used, plan.chart_type)
+    
+    # 8. Re-validate with actual grounding score
+    val_result = validate_execution(exec_result, resolved_schema, intent, grounding_score=grounding_score)
     
     chart_data = val_result.data
     
     # Save Assistant msg
     save_message(session_id, role="assistant", content=ans, sql=exec_result.final_sql, chart_type=final_chart_type, chart_data=chart_data, confidence=val_result.confidence.value, columns_used=cols, intent=intent)
     
+    warning_msg = None
+    if val_result.confidence.value == "Low":
+        warning_msg = "This result has low confidence. Please verify the logic."
+        
     return QueryResponse(
         answer=ans,
         sql=exec_result.final_sql,
         chart_type=final_chart_type,
         chart_data=chart_data,
         confidence=val_result.confidence.value,
+        confidence_score=val_result.confidence_score,
+        confidence_breakdown=val_result.confidence_breakdown,
+        retry_count=exec_result.attempts_used - 1,
+        warning=warning_msg,
         columns_used=cols,
         intent=intent,
         error=None

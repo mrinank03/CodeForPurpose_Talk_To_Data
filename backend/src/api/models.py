@@ -11,6 +11,11 @@ class QueryResponse(BaseModel):
     chart_type: Optional[str] = None
     chart_data: Optional[list[dict]] = None
     confidence: Optional[str] = None
+    confidence_score: Optional[float] = None
+    confidence_breakdown: Optional[dict] = None
+    abstained: bool = False
+    warning: Optional[str] = None
+    retry_count: Optional[int] = None
     columns_used: Optional[list[str]] = None
     intent: Optional[str] = None
     error: Optional[str] = None

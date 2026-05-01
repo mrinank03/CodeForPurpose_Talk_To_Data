@@ -33,26 +33,26 @@ def embed_columns(columns_with_descriptions: dict[str, str], session_id: str):
     with open(collection_file, "w") as f:
         json.dump({"docs": docs, "metadata": metadata}, f)
 
-def search_relevant_columns(question: str, session_id: str, top_k: int = 5) -> list[dict]:
+def search_relevant_columns(question: str, session_id: str, top_k: int = 5) -> tuple[list[dict], float]:
     """
     Vectorizes the search query and the stored column docs using TF-IDF,
     then retrieves the top_k closest semantic matches using Cosine Similarity.
     """
     collection_file = os.path.join(CHROMA_PATH, f"schema_{session_id}.json")
     if not os.path.exists(collection_file):
-        return []
+        return [], 0.0
         
     try:
         with open(collection_file, "r") as f:
             data = json.load(f)
     except Exception:
-        return []
+        return [], 0.0
         
     docs = data.get("docs", [])
     metadata = data.get("metadata", [])
     
     if not docs:
-        return []
+        return [], 0.0
         
     # Use TF-IDF "Embeddings" for Semantic Matching
     vectorizer = TfidfVectorizer(stop_words='english')
@@ -62,7 +62,7 @@ def search_relevant_columns(question: str, session_id: str, top_k: int = 5) -> l
         tfidf_matrix = vectorizer.fit_transform(all_texts)
     except ValueError:
         # Fallback if query lacks matchable characters entirely
-        return metadata[:top_k]
+        return metadata[:top_k], 0.0
         
     question_vec = tfidf_matrix[-1]
     doc_vecs = tfidf_matrix[:-1]
@@ -78,11 +78,13 @@ def search_relevant_columns(question: str, session_id: str, top_k: int = 5) -> l
         if similarities[idx] > 0.0:
             results.append(metadata[idx])
             
-    # Guarantee a fallback if similarity is null
-    if not results:
-        results = metadata[:top_k]
+    max_score = similarities[top_indices[0]] if top_indices.size > 0 else 0.0
+    
+    # We no longer guarantee a fallback. If max_score is 0, we return empty so schema resolver can reject.
+    if max_score == 0.0:
+        return [], 0.0
         
-    return results[:top_k]
+    return results[:top_k], float(max_score)
 
 def delete_collection(session_id: str):
     """

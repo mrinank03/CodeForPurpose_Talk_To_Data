@@ -12,13 +12,14 @@ class ResolvedSchema(BaseModel):
     table_name: str
     relevant_columns: list[dict]
     full_schema_str: str
+    schema_score: float
 
 def resolve_schema(question: str, session_id: str) -> ResolvedSchema:
     table_name = f"data_{session_id.replace('-', '_')}"
     db_path = os.path.join(DATA_DB_DIR, f"{session_id}.db")
     
     # 1. Semantic search for columns
-    relevant_cols = search_relevant_columns(question, session_id, top_k=5)
+    relevant_cols, max_score = search_relevant_columns(question, session_id, top_k=5)
     
     # 2. Extract full schema from SQLite
     schema_str = ""
@@ -36,5 +37,6 @@ def resolve_schema(question: str, session_id: str) -> ResolvedSchema:
     return ResolvedSchema(
         table_name=table_name,
         relevant_columns=relevant_cols,
-        full_schema_str=schema_str
+        full_schema_str=schema_str,
+        schema_score=max_score
     )

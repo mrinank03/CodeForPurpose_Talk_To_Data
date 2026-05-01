@@ -15,6 +15,9 @@ class ExecutionResult(BaseModel):
     data: Optional[list[dict]] = None
     column_names: Optional[list[str]] = None
     final_sql: Optional[str] = None
+    attempts_used: int = 1
+    was_corrected: bool = False
+    last_error_message: Optional[str] = None
 
 def execute_with_retry(question: str, initial_sql: str, session_id: str, schema_str: str) -> ExecutionResult:
     db_path = os.path.join(DATA_DB_DIR, f"{session_id}.db")
@@ -30,8 +33,10 @@ def execute_with_retry(question: str, initial_sql: str, session_id: str, schema_
     
     current_sql = initial_sql
     llm = get_sql_llm()
+    was_corrected = False
+    last_error_message = None
     
-    for attempt in range(MAX_RETRY + 1):
+    for attempt in range(1, MAX_RETRY + 2):
         try:
             with engine.connect() as conn:
                 result = conn.execute(text(current_sql))
@@ -53,12 +58,21 @@ def execute_with_retry(question: str, initial_sql: str, session_id: str, schema_
                     success=True,
                     data=rows,
                     column_names=keys,
-                    final_sql=current_sql
+                    final_sql=current_sql,
+                    attempts_used=attempt,
+                    was_corrected=was_corrected,
+                    last_error_message=last_error_message
                 )
         except Exception as e:
-            error_msg = str(e)
-            if attempt == MAX_RETRY:
-                return ExecutionResult(success=False, error_message=error_msg)
+            last_error_message = str(e)
+            if attempt == MAX_RETRY + 1:
+                return ExecutionResult(
+                    success=False, 
+                    error_message=last_error_message,
+                    attempts_used=attempt,
+                    was_corrected=was_corrected,
+                    last_error_message=last_error_message
+                )
             
             # Classify and correct error
             prompt = PromptTemplate.from_template(
@@ -70,7 +84,7 @@ def execute_with_retry(question: str, initial_sql: str, session_id: str, schema_
                 "Instructions:\n"
                 "Fix the SQL query to resolve the error. ONLY output a JSON object with 'sql' key containing the fixed query."
             )
-            res = prompt.format(schema=schema_str, question=question, sql=current_sql, error=error_msg)
+            res = prompt.format(schema=schema_str, question=question, sql=current_sql, error=last_error_message)
             llm_res = llm.invoke(res)
             content = llm_res.content.strip()
             
@@ -82,7 +96,20 @@ def execute_with_retry(question: str, initial_sql: str, session_id: str, schema_
             try:
                 parsed = json.loads(content)
                 current_sql = parsed.get("sql", current_sql)
+                was_corrected = True
             except:
-                return ExecutionResult(success=False, error_message="Self-correction Failed. " + error_msg)
+                return ExecutionResult(
+                    success=False, 
+                    error_message="Self-correction Failed. " + last_error_message,
+                    attempts_used=attempt,
+                    was_corrected=was_corrected,
+                    last_error_message=last_error_message
+                )
 
-    return ExecutionResult(success=False, error_message="Max retries reached")
+    return ExecutionResult(
+        success=False, 
+        error_message="Max retries reached",
+        attempts_used=MAX_RETRY + 1,
+        was_corrected=was_corrected,
+        last_error_message=last_error_message
+    )
