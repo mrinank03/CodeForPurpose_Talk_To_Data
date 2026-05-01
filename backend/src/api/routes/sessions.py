@@ -1,5 +1,6 @@
 from fastapi import APIRouter
-from src.data.session_store import list_sessions, get_session, get_messages, delete_session
+from pydantic import BaseModel
+from src.data.session_store import list_sessions, get_session, get_messages, delete_session, update_session_flags
 
 router = APIRouter()
 
@@ -50,3 +51,12 @@ def get_session_detail(session_id: str):
 def remove_session(session_id: str):
     delete_session(session_id)
     return {"status": "deleted"}
+
+class SessionUpdate(BaseModel):
+    is_starred: bool = None
+    is_archived: bool = None
+
+@router.patch("/sessions/{session_id}")
+def update_session(session_id: str, update: SessionUpdate):
+    update_session_flags(session_id, is_starred=update.is_starred, is_archived=update.is_archived)
+    return {"status": "updated"}

@@ -25,9 +25,22 @@ def init_db():
                 upload_timestamp TEXT,
                 row_count INTEGER,
                 col_count INTEGER,
-                status TEXT
+                status TEXT,
+                is_starred INTEGER DEFAULT 0,
+                is_archived INTEGER DEFAULT 0
             )
         ''')
+        
+        # Add columns if they don't exist (for existing databases)
+        try:
+            cursor.execute('ALTER TABLE sessions ADD COLUMN is_starred INTEGER DEFAULT 0')
+        except sqlite3.OperationalError:
+            pass # Column already exists
+            
+        try:
+            cursor.execute('ALTER TABLE sessions ADD COLUMN is_archived INTEGER DEFAULT 0')
+        except sqlite3.OperationalError:
+            pass # Column already exists
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS messages (
                 id TEXT PRIMARY KEY,
@@ -47,19 +60,37 @@ def init_db():
         conn.commit()
 
 # Call init_db on module import safely
-if not os.path.exists(DB_PATH) or os.path.getsize(DB_PATH) == 0:
-    init_db()
+init_db()
 
 def create_session(session_id: str, filename: str, row_count: int, col_count: int) -> str:
     timestamp = datetime.utcnow().isoformat()
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
         cursor.execute('''
-            INSERT OR REPLACE INTO sessions (id, filename, upload_timestamp, row_count, col_count, status)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT OR REPLACE INTO sessions (id, filename, upload_timestamp, row_count, col_count, status, is_starred, is_archived)
+            VALUES (?, ?, ?, ?, ?, ?, 0, 0)
         ''', (session_id, filename, timestamp, row_count, col_count, "active"))
         conn.commit()
     return session_id
+
+def update_session_flags(session_id: str, is_starred: bool = None, is_archived: bool = None):
+    updates = []
+    params = []
+    if is_starred is not None:
+        updates.append("is_starred = ?")
+        params.append(1 if is_starred else 0)
+    if is_archived is not None:
+        updates.append("is_archived = ?")
+        params.append(1 if is_archived else 0)
+        
+    if not updates:
+        return
+        
+    params.append(session_id)
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute(f"UPDATE sessions SET {', '.join(updates)} WHERE id = ?", params)
+        conn.commit()
 
 def get_session(session_id: str) -> dict:
     with sqlite3.connect(DB_PATH) as conn:

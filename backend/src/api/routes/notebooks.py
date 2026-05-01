@@ -177,7 +177,7 @@ async def _run_prompt_cell(session_id: str, prompt: str) -> dict:
         data = exec_result.data or []
         columns = exec_result.column_names or []
 
-        narration, final_chart_type = narrate_result(prompt, data, columns, chart_type)
+        narration, final_chart_type, _ = narrate_result(prompt, data, columns, chart_type)
 
         if final_chart_type in ("bar", "line", "pie"):
             return {

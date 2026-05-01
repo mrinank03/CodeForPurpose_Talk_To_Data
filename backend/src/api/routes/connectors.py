@@ -12,6 +12,9 @@ from src.connectors.connector_registry import (
     register, get, remove, ConnectorSession
 )
 from src.connectors.sync_scheduler import register_sync_job, cancel_sync_job
+import json
+from src.scheduler.crypto import encrypt_value
+from src.scheduler.metadata_db import SessionLocal, EncryptedCredentials
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -78,6 +81,35 @@ async def connect_database(req: ConnectionCredentials):
         password=req.password,
     )
     register(req.session_id, connector)
+    
+    # Store encrypted credentials for scheduled tasks
+    try:
+        db = SessionLocal()
+        # Remove any existing credentials for this session
+        db.query(EncryptedCredentials).filter(EncryptedCredentials.session_id == req.session_id).delete()
+        
+        c_dict = {
+            "db_type": req.db_type,
+            "host": req.host,
+            "port": req.port,
+            "database": req.database,
+            "username": req.username,
+            "password": req.password
+        }
+        enc_blob = encrypt_value(json.dumps(c_dict))
+        
+        new_cred = EncryptedCredentials(
+            connection_id=req.session_id,
+            session_id=req.session_id,
+            db_type=req.db_type,
+            encrypted_blob=enc_blob
+        )
+        db.add(new_cred)
+        db.commit()
+    except Exception as e:
+        logger.error(f"Failed to store encrypted credentials for {req.session_id}: {e}")
+    finally:
+        db.close()
 
     return {
         "status": "connected",

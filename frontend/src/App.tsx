@@ -22,7 +22,7 @@ const App: React.FC = () => {
     uploadFile, isUploading, uploadProgress, 
     allSessions, fetchSessions, loadSession, resetSession,
     suggestedQuestions, setSuggestedQuestions,
-    precomputedInsights, activateSession
+    precomputedInsights, activateSession, deleteSession, updateSession
   } = useSession();
 
   // Generate a stable session ID for the connector modal when no session exists yet
@@ -148,6 +148,8 @@ const App: React.FC = () => {
         activeNotebookId={activeNotebookId}
         onOpenNotebook={handleOpenNotebook}
         notebookRefreshTrigger={notebookRefreshTrigger}
+        onDeleteSession={deleteSession}
+        onUpdateSession={updateSession}
       />
       
       <div className="flex-1 flex flex-col h-full overflow-hidden relative min-w-0">

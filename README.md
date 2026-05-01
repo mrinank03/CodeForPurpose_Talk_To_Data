@@ -45,7 +45,9 @@
 - **Precomputed dashboard insights** — Instant KPI cards are generated the moment data is uploaded: total by category, distribution breakdowns, averages, trend lines, and top-N tables.
 - **AI-generated suggested questions** — After upload, the LLM generates 5 contextual starter questions based on the actual column profiles.
 - **Session management with sidebar** — Multiple analysis sessions can be created, switched between, and revisited. Chat history is persisted per session.
-- **Confidence scoring** — Every AI response includes a confidence level (High / Medium / Low).
+- **Evidence-based Confidence scoring** — Every AI response is graded via a deterministic 4-part weighted formula considering Schema Match (TF-IDF), Execution Success, Row-Reasonableness (shape vs. intent), and Claim Grounding.
+- **LLM Claim Grounding** — Atomic factual claims generated in narrative summaries are explicitly verified against raw SQL execution results before returning to the user.
+- **Early Query Rejection** — Out-of-scope or completely irrelevant queries are immediately rejected at the Schema Resolution layer without proceeding to SQL planning, preventing hallucinated queries and saving LLM tokens.
 - **Rate limiting** — Backend API is protected with configurable per-minute rate limits via `slowapi`.
 
 ### 🎙️ Voice Input
@@ -65,6 +67,15 @@
 - **In-memory credential security** — Database credentials are stored only in process memory. They are never written to disk, never logged, and are purged on server restart.
 - **Prominent Connect Database UI** — A clearly visible "Connect External Database" button sits below the file uploader on the landing page. After connecting, the chat UI opens instantly with a live green sync badge.
 - **One-click disconnect** — Cancels background sync, deletes the mirror file, and purges credentials from memory.
+
+### 📓 Automated Notebook Reports
+
+- **Multi-Cell Data Notebooks** — Users can author analytical notebooks blending markdown text, raw SQL execution, and natural-language AI prompts.
+- **Scheduled Automated Execution** — Integrated `APScheduler` engine allows scheduling notebooks via cron syntax (e.g., daily at 9 AM).
+- **Headless Background Runner** — A headless runner securely decrypts connected database credentials, mirrors the latest remote data, and sequentially executes the notebook in the background.
+- **Symmetric Credential Encryption** — Database passwords for scheduled jobs are persistently secured at rest in the metadata DB using `cryptography.Fernet` encryption, rather than held in plaintext.
+- **Automated Email Dispatch** — Notebook outputs (AI narratives, tables, charts) are dynamically compiled into a unified PDF report and emailed to pre-selected recipients directly via SMTP or Resend.
+- **Centralized Schedule API** — Full REST API suite for CRUD schedule management (`create`, `enable`, `disable`, `update`).
 
 ---
 

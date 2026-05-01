@@ -66,6 +66,7 @@ export const NotebookList: React.FC<NotebookListProps> = ({
       {isExpanded && (
         <div className="pb-2 space-y-1 mt-1">
           <button
+            id="new-notebook-btn"
             onClick={handleCreate}
             className="w-full py-2 px-3 rounded-lg bg-natwest-primary/10 hover:bg-natwest-primary/20 border border-natwest-primary/20 hover:border-natwest-primary/40 text-natwest-primary transition-all text-xs font-medium flex items-center justify-center gap-2 mb-2"
           >

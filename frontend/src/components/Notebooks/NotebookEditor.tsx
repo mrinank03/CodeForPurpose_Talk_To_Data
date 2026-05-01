@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { Play, Save, Plus, Loader2, Database } from 'lucide-react';
+import { Play, Save, Plus, Loader2, Database, Clock } from 'lucide-react';
 import { Notebook, NotebookCell, CellType } from '../../types/notebook';
 import { saveNotebook, runCell } from '../../services/notebookApi';
 import { CellWrapper } from './cells/CellWrapper';
@@ -8,6 +8,7 @@ import { TextCell } from './cells/TextCell';
 import { PromptCell } from './cells/PromptCell';
 import { CodeCell } from './cells/CodeCell';
 import { FileUploader } from '../Upload/FileUploader';
+import { ScheduleModal } from './ScheduleModal';
 
 interface NotebookEditorProps {
   initialNotebook: Notebook;
@@ -29,6 +30,7 @@ export const NotebookEditor: React.FC<NotebookEditorProps> = ({
   const [runProgress, setRunProgress] = useState<{ current: number; total: number } | null>(null);
   const [titleEditing, setTitleEditing] = useState(false);
   const [titleInput, setTitleInput] = useState(notebook.title);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
   
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
 
@@ -208,6 +210,16 @@ export const NotebookEditor: React.FC<NotebookEditorProps> = ({
             {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             Save
           </button>
+          
+          <button
+            onClick={() => setShowScheduleModal(true)}
+            disabled={!notebook.session_id}
+            title={notebook.session_id ? "Schedule Report" : "Connect a data source first"}
+            className="flex items-center justify-center p-2 rounded-lg bg-white/5 hover:bg-white/10 text-white/90 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+          >
+            <Clock className="w-4 h-4" />
+          </button>
+          
           <button
             onClick={handleRunAll}
             disabled={!!runProgress}
@@ -299,19 +311,28 @@ export const NotebookEditor: React.FC<NotebookEditorProps> = ({
           ))}
 
           {/* Add Cell Row */}
-          <div className="flex items-center justify-center gap-3 mt-8 pb-12">
-            <button onClick={() => handleAddCell('text')} className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-white/5 hover:bg-white/10 text-white/70 text-sm font-medium transition-colors border border-white/5 hover:border-white/20">
+          <div className="flex items-center justify-center gap-4 mt-8 pb-12">
+            <button onClick={() => handleAddCell('text')} className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/70 hover:text-white text-sm font-medium transition-all border border-white/10">
               <Plus className="w-4 h-4" /> Text
             </button>
-            <button onClick={() => handleAddCell('prompt')} className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-natwest-primary/10 hover:bg-natwest-primary/20 text-natwest-primary text-sm font-medium transition-colors border border-natwest-primary/20 hover:border-natwest-primary/50">
-              <Plus className="w-4 h-4" /> Prompt
+            <button onClick={() => handleAddCell('prompt')} className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-natwest-medium to-natwest-light hover:from-natwest-light hover:to-natwest-light text-white text-sm font-medium transition-all shadow-lg shadow-natwest-primary/40 transform hover:-translate-y-0.5 border border-white/10 relative overflow-hidden group">
+              <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out" />
+              <Plus className="w-4 h-4 relative z-10" /> 
+              <span className="relative z-10">Prompt</span>
             </button>
-            <button onClick={() => handleAddCell('code')} className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 text-sm font-medium transition-colors border border-blue-500/20 hover:border-blue-500/50">
+            <button onClick={() => handleAddCell('code')} className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 hover:text-blue-300 text-sm font-medium transition-all border border-blue-500/20">
               <Plus className="w-4 h-4" /> Code
             </button>
           </div>
         </div>
       </div>
+      
+      {showScheduleModal && (
+        <ScheduleModal
+          notebookId={notebook.id}
+          onClose={() => setShowScheduleModal(false)}
+        />
+      )}
     </div>
   );
 };

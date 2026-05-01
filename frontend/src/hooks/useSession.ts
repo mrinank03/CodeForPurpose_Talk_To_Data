@@ -139,10 +139,19 @@ export const useSession = () => {
     await fetchSessions();
   };
 
+  const updateSession = async (id: string, updates: { is_starred?: boolean; is_archived?: boolean }) => {
+    try {
+      await api.patch(`/api/sessions/${id}`, updates);
+      setAllSessions(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
+    } catch (e) {
+      console.error('Failed to update session', e);
+    }
+  };
+
   return { 
     sessionId, meta, metricDict, profile, uploadFile, isUploading, 
     uploadProgress, resetSession, suggestedQuestions, setSuggestedQuestions,
     allSessions, fetchSessions, loadSession, precomputedInsights, activateSession,
-    deleteSession
+    deleteSession, updateSession
   };
 };

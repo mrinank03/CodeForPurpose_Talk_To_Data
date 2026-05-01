@@ -361,7 +361,7 @@ async def generate_full_report(session_id: str, df: pd.DataFrame, user_prompt: s
             if val_result.answer_text: # Error or empty
                 continue
                 
-            ans, final_chart_type = narrate_result(q, val_result.data, val_result.columns_used, plan.chart_type)
+            ans, final_chart_type, _ = narrate_result(q, val_result.data, val_result.columns_used, plan.chart_type)
             
             charts.append({
                 "headline": ans,
