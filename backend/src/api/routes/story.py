@@ -1,19 +1,28 @@
 import os
 import pandas as pd
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy import create_engine
 from src.api.models import StoryRequest, ReportRequest, EmailReportRequest
 from src.story.analyst_mode import run_story_mode
 from src.story.report_engine import generate_full_report
 from src.story.email_service import send_report_email, build_report_html
 from src.data.ingestor import get_table_name
+from src.data.session_store import get_session
+from src.api.dependencies import get_current_user
 
 router = APIRouter()
 DATA_DB_DIR = os.getenv("DATA_DB_DIR", "./data_dbs/")
 
 
+def _verify_session(session_id: str, current_user: dict):
+    sess = get_session(session_id)
+    if not sess or sess.get("user_id") != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Unauthorized session")
+
+
 @router.post("/story")
-async def get_stories(req: StoryRequest):
+async def get_stories(req: StoryRequest, current_user: dict = Depends(get_current_user)):
+    _verify_session(req.session_id, current_user)
     cards = await run_story_mode(req.session_id)
     return cards
 
@@ -39,8 +48,9 @@ def _load_session_df(session_id: str) -> pd.DataFrame:
 
 
 @router.get("/report/columns/{session_id}")
-async def get_available_columns(session_id: str):
+async def get_available_columns(session_id: str, current_user: dict = Depends(get_current_user)):
     """Return the list of columns available for report generation."""
+    _verify_session(session_id, current_user)
     df = _load_session_df(session_id)
     columns = []
     for col in df.columns:
@@ -55,16 +65,18 @@ async def get_available_columns(session_id: str):
 
 
 @router.post("/report")
-async def generate_report(req: ReportRequest):
+async def generate_report(req: ReportRequest, current_user: dict = Depends(get_current_user)):
     """Generate a full AI report based on user prompt."""
+    _verify_session(req.session_id, current_user)
     df = _load_session_df(req.session_id)
     report = await generate_full_report(req.session_id, df, req.prompt)
     return report
 
 
 @router.post("/report/email")
-async def email_report(req: EmailReportRequest):
+async def email_report(req: EmailReportRequest, current_user: dict = Depends(get_current_user)):
     """Generate a report, build PDF with charts, and email it to the recipient."""
+    _verify_session(req.session_id, current_user)
     from src.story.pdf_report import generate_report_pdf
 
     df = _load_session_df(req.session_id)

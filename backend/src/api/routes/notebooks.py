@@ -8,8 +8,9 @@ import uuid
 from datetime import datetime
 from typing import Optional, List
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
+from src.api.dependencies import get_current_user
 
 router = APIRouter()
 
@@ -67,11 +68,12 @@ def _save_notebook(data: dict):
 # ── Routes ────────────────────────────────────────────────────────────────────
 
 @router.post("/notebooks/create")
-def create_notebook(req: CreateNotebookRequest):
+def create_notebook(req: CreateNotebookRequest, current_user: dict = Depends(get_current_user)):
     """Create a new empty notebook."""
     now = datetime.utcnow().isoformat()
     nb = {
         "id": str(uuid.uuid4()),
+        "user_id": current_user["id"],
         "title": req.title,
         "session_id": req.session_id,
         "created_at": now,
@@ -83,7 +85,7 @@ def create_notebook(req: CreateNotebookRequest):
 
 
 @router.get("/notebooks/list")
-def list_notebooks():
+def list_notebooks(current_user: dict = Depends(get_current_user)):
     """List all notebooks (summary only)."""
     notebooks = []
     for fname in sorted(os.listdir(NOTEBOOKS_DIR), reverse=True):
@@ -93,6 +95,8 @@ def list_notebooks():
             path = os.path.join(NOTEBOOKS_DIR, fname)
             with open(path, "r") as f:
                 data = json.load(f)
+            if data.get("user_id") != current_user["id"]:
+                continue
             notebooks.append({
                 "id": data["id"],
                 "title": data.get("title", "Untitled"),
@@ -108,15 +112,20 @@ def list_notebooks():
 
 
 @router.get("/notebooks/{notebook_id}")
-def get_notebook(notebook_id: str):
+def get_notebook(notebook_id: str, current_user: dict = Depends(get_current_user)):
     """Get a single notebook with all cells."""
-    return _load_notebook(notebook_id)
+    nb = _load_notebook(notebook_id)
+    if nb.get("user_id") != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    return nb
 
 
 @router.put("/notebooks/{notebook_id}")
-def save_notebook(notebook_id: str, req: SaveNotebookRequest):
+def save_notebook(notebook_id: str, req: SaveNotebookRequest, current_user: dict = Depends(get_current_user)):
     """Save/update a notebook."""
     nb = _load_notebook(notebook_id)
+    if nb.get("user_id") != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Unauthorized")
     nb["title"] = req.title
     nb["cells"] = [c.dict() for c in req.cells]
     nb["updated_at"] = datetime.utcnow().isoformat()
@@ -127,8 +136,11 @@ def save_notebook(notebook_id: str, req: SaveNotebookRequest):
 
 
 @router.delete("/notebooks/{notebook_id}")
-def delete_notebook(notebook_id: str):
+def delete_notebook(notebook_id: str, current_user: dict = Depends(get_current_user)):
     """Delete a notebook."""
+    nb = _load_notebook(notebook_id)
+    if nb.get("user_id") != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Unauthorized")
     path = _nb_path(notebook_id)
     if os.path.exists(path):
         os.remove(path)
@@ -136,9 +148,11 @@ def delete_notebook(notebook_id: str):
 
 
 @router.post("/notebooks/{notebook_id}/run-cell")
-async def run_cell(notebook_id: str, req: RunCellRequest):
+async def run_cell(notebook_id: str, req: RunCellRequest, current_user: dict = Depends(get_current_user)):
     """Execute a single cell (prompt or code/SQL)."""
     nb = _load_notebook(notebook_id)
+    if nb.get("user_id") != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Unauthorized")
     session_id = nb.get("session_id")
 
     if not session_id:

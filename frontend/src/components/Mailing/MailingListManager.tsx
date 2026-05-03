@@ -190,7 +190,7 @@ export const MailingListManager: React.FC<MailingListManagerProps> = ({ onClose 
               <h3 className="text-xs font-bold text-white/70 uppercase tracking-wider">Groups</h3>
               <button 
                 onClick={() => setIsCreatingGroup(true)}
-                className="p-1.5 rounded-lg bg-natwest-primary/20 hover:bg-natwest-primary/40 text-natwest-primary transition-colors"
+                className="p-1.5 rounded-lg bg-natwest-primary hover:bg-natwest-primary/80 text-white transition-colors"
                 title="Create Group"
               >
                 <Plus className="w-4 h-4" />
@@ -224,11 +224,11 @@ export const MailingListManager: React.FC<MailingListManagerProps> = ({ onClose 
                   <div 
                     key={g.group_id}
                     onClick={() => setSelectedGroupId(g.group_id)}
-                    className={`p-3 rounded-xl cursor-pointer flex items-center justify-between group transition-all ${selectedGroupId === g.group_id ? 'bg-natwest-primary/10 border border-natwest-primary/30' : 'bg-transparent border border-transparent hover:bg-white/5'}`}
+                    className={`p-3 rounded-xl cursor-pointer flex items-center justify-between group transition-all ${selectedGroupId === g.group_id ? 'bg-natwest-primary border border-transparent shadow-lg shadow-natwest-primary/20' : 'bg-transparent border border-transparent hover:bg-white/5'}`}
                   >
                     <div>
-                      <div className={`text-sm font-bold ${selectedGroupId === g.group_id ? 'text-natwest-primary' : 'text-white/80'}`}>{g.name}</div>
-                      {g.description && <div className="text-xs text-white/40 mt-0.5">{g.description}</div>}
+                      <div className={`text-sm font-bold ${selectedGroupId === g.group_id ? 'text-white' : 'text-white/80'}`}>{g.name}</div>
+                      {g.description && <div className={`text-xs mt-0.5 ${selectedGroupId === g.group_id ? 'text-white/80' : 'text-white/40'}`}>{g.description}</div>}
                     </div>
                     <button 
                       onClick={(e) => handleDeleteGroup(g.group_id, e)}
@@ -253,7 +253,7 @@ export const MailingListManager: React.FC<MailingListManagerProps> = ({ onClose 
                   </div>
                   <button 
                     onClick={() => setIsAddingContact(!isAddingContact)}
-                    className="px-3 py-1.5 rounded-lg bg-natwest-teal/20 hover:bg-natwest-teal/40 text-natwest-teal text-xs font-bold transition-colors flex items-center gap-1.5"
+                    className="px-3 py-1.5 rounded-lg bg-natwest-teal hover:bg-natwest-teal/80 text-white text-xs font-bold transition-colors flex items-center gap-1.5 shadow-lg shadow-natwest-teal/20"
                   >
                     {isAddingContact ? <X className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
                     {isAddingContact ? 'Cancel' : 'Add Contact'}

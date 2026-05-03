@@ -37,7 +37,8 @@ class MailingGroup(Base):
     __tablename__ = "mailing_groups"
 
     group_id = Column(String, primary_key=True, index=True)
-    name = Column(String, unique=True, index=True)
+    user_id = Column(String, index=True, nullable=True) # Added for user isolation
+    name = Column(String, index=True) # Removed unique=True to allow same name across users
     description = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -45,8 +46,9 @@ class MailingContact(Base):
     __tablename__ = "mailing_contacts"
 
     contact_id = Column(String, primary_key=True, index=True)
+    user_id = Column(String, index=True, nullable=True) # Added for user isolation
     name = Column(String)
-    email = Column(String, unique=True, index=True)
+    email = Column(String, index=True) # Removed unique=True to allow same email across users
     created_at = Column(DateTime, default=datetime.utcnow)
 
 class GroupMembership(Base):

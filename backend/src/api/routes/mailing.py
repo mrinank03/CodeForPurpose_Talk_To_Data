@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from src.scheduler.metadata_db import get_db, MailingGroup, MailingContact, GroupMembership
+from src.api.dependencies import get_current_user
 
 router = APIRouter()
 
@@ -29,17 +30,18 @@ class ContactResponse(BaseModel):
 # --- Groups ---
 
 @router.get("/mailing/groups", response_model=List[GroupResponse])
-def get_groups(db: Session = Depends(get_db)):
-    return db.query(MailingGroup).all()
+def get_groups(db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+    return db.query(MailingGroup).filter(MailingGroup.user_id == current_user["id"]).all()
 
 @router.post("/mailing/groups", response_model=GroupResponse)
-def create_group(req: GroupCreate, db: Session = Depends(get_db)):
-    existing = db.query(MailingGroup).filter(MailingGroup.name == req.name).first()
+def create_group(req: GroupCreate, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+    existing = db.query(MailingGroup).filter(MailingGroup.name == req.name, MailingGroup.user_id == current_user["id"]).first()
     if existing:
         raise HTTPException(status_code=400, detail="Group name already exists")
     
     group = MailingGroup(
         group_id=str(uuid.uuid4()),
+        user_id=current_user["id"],
         name=req.name,
         description=req.description
     )
@@ -49,10 +51,10 @@ def create_group(req: GroupCreate, db: Session = Depends(get_db)):
     return group
 
 @router.delete("/mailing/groups/{group_id}")
-def delete_group(group_id: str, db: Session = Depends(get_db)):
-    group = db.query(MailingGroup).filter(MailingGroup.group_id == group_id).first()
+def delete_group(group_id: str, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+    group = db.query(MailingGroup).filter(MailingGroup.group_id == group_id, MailingGroup.user_id == current_user["id"]).first()
     if not group:
-        raise HTTPException(status_code=404, detail="Group not found")
+        raise HTTPException(status_code=404, detail="Group not found or unauthorized")
     
     # Delete memberships
     db.query(GroupMembership).filter(GroupMembership.group_id == group_id).delete()
@@ -63,12 +65,12 @@ def delete_group(group_id: str, db: Session = Depends(get_db)):
 # --- Contacts ---
 
 @router.get("/mailing/contacts", response_model=List[ContactResponse])
-def get_all_contacts(db: Session = Depends(get_db)):
-    return db.query(MailingContact).all()
+def get_all_contacts(db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+    return db.query(MailingContact).filter(MailingContact.user_id == current_user["id"]).all()
 
 @router.post("/mailing/contacts", response_model=ContactResponse)
-def create_contact(req: ContactCreate, db: Session = Depends(get_db)):
-    existing = db.query(MailingContact).filter(MailingContact.email == req.email).first()
+def create_contact(req: ContactCreate, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+    existing = db.query(MailingContact).filter(MailingContact.email == req.email, MailingContact.user_id == current_user["id"]).first()
     if existing:
         # Update name if exists
         existing.name = req.name
@@ -78,6 +80,7 @@ def create_contact(req: ContactCreate, db: Session = Depends(get_db)):
         
     contact = MailingContact(
         contact_id=str(uuid.uuid4()),
+        user_id=current_user["id"],
         name=req.name,
         email=req.email
     )
@@ -87,10 +90,10 @@ def create_contact(req: ContactCreate, db: Session = Depends(get_db)):
     return contact
 
 @router.delete("/mailing/contacts/{contact_id}")
-def delete_contact(contact_id: str, db: Session = Depends(get_db)):
-    contact = db.query(MailingContact).filter(MailingContact.contact_id == contact_id).first()
+def delete_contact(contact_id: str, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+    contact = db.query(MailingContact).filter(MailingContact.contact_id == contact_id, MailingContact.user_id == current_user["id"]).first()
     if not contact:
-        raise HTTPException(status_code=404, detail="Contact not found")
+        raise HTTPException(status_code=404, detail="Contact not found or unauthorized")
     
     db.query(GroupMembership).filter(GroupMembership.contact_id == contact_id).delete()
     db.delete(contact)
@@ -100,7 +103,11 @@ def delete_contact(contact_id: str, db: Session = Depends(get_db)):
 # --- Group Memberships ---
 
 @router.get("/mailing/groups/{group_id}/contacts", response_model=List[ContactResponse])
-def get_group_contacts(group_id: str, db: Session = Depends(get_db)):
+def get_group_contacts(group_id: str, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+    group = db.query(MailingGroup).filter(MailingGroup.group_id == group_id, MailingGroup.user_id == current_user["id"]).first()
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+        
     memberships = db.query(GroupMembership).filter(GroupMembership.group_id == group_id).all()
     contact_ids = [m.contact_id for m in memberships]
     if not contact_ids:
@@ -109,7 +116,14 @@ def get_group_contacts(group_id: str, db: Session = Depends(get_db)):
     return contacts
 
 @router.post("/mailing/groups/{group_id}/contacts/{contact_id}")
-def add_contact_to_group(group_id: str, contact_id: str, db: Session = Depends(get_db)):
+def add_contact_to_group(group_id: str, contact_id: str, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+    group = db.query(MailingGroup).filter(MailingGroup.group_id == group_id, MailingGroup.user_id == current_user["id"]).first()
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+        
+    contact = db.query(MailingContact).filter(MailingContact.contact_id == contact_id, MailingContact.user_id == current_user["id"]).first()
+    if not contact:
+        raise HTTPException(status_code=404, detail="Contact not found")
     existing = db.query(GroupMembership).filter(
         GroupMembership.group_id == group_id, 
         GroupMembership.contact_id == contact_id
@@ -127,7 +141,10 @@ def add_contact_to_group(group_id: str, contact_id: str, db: Session = Depends(g
     return {"status": "added"}
 
 @router.delete("/mailing/groups/{group_id}/contacts/{contact_id}")
-def remove_contact_from_group(group_id: str, contact_id: str, db: Session = Depends(get_db)):
+def remove_contact_from_group(group_id: str, contact_id: str, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+    group = db.query(MailingGroup).filter(MailingGroup.group_id == group_id, MailingGroup.user_id == current_user["id"]).first()
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
     db.query(GroupMembership).filter(
         GroupMembership.group_id == group_id, 
         GroupMembership.contact_id == contact_id

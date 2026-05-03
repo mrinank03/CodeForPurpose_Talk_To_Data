@@ -1,9 +1,10 @@
 import os
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, Request, HTTPException, Depends
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from src.api.models import QueryRequest, QueryResponse
-from src.data.session_store import save_message, get_messages
+from src.data.session_store import save_message, get_messages, get_session
+from src.api.dependencies import get_current_user
 
 from src.agents.intent_classifier import classify_intent
 from src.agents.schema_resolver import resolve_schema
@@ -18,9 +19,13 @@ rpm = os.getenv("RATE_LIMIT_PER_MINUTE", "30")
 
 @router.post("/query", response_model=QueryResponse)
 @limiter.limit(f"{rpm}/minute")
-async def process_query(request: Request, body: QueryRequest):
+async def process_query(request: Request, body: QueryRequest, current_user: dict = Depends(get_current_user)):
     session_id = body.session_id
     question = body.question
+    
+    sess = get_session(session_id)
+    if not sess or sess.get("user_id") != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Unauthorized session")
     
     # 1. Save user question
     save_message(session_id, role="user", content=question)

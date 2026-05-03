@@ -35,9 +35,9 @@ def mirror_table(session_id: str, db_type: str, host: str, port: int,
         query = f"SELECT * FROM {table_name} LIMIT 50000"
         df = pd.read_sql(query, source_engine)
 
-        # Write to mirror using the standard table naming convention
-        mirror_table_name = f"data_{session_id.replace('-', '_')}"
-        df.to_sql(mirror_table_name, mirror_engine, if_exists="replace", index=False)
+        # Write to mirror preserving the original table name so multi-table
+        # databases work correctly (JOINs, cross-table queries, etc.)
+        df.to_sql(table_name, mirror_engine, if_exists="replace", index=False)
 
         logger.info(f"Mirrored {len(df)} rows from {table_name} into session {session_id}")
         return len(df)
@@ -54,7 +54,6 @@ def sync_table_if_changed(session_id: str, db_type: str, host: str, port: int,
     source_engine = create_source_engine(db_type, host, port, database, username, password)
     mirror_path = get_mirror_path(session_id)
     mirror_engine = create_engine(f"sqlite:///{mirror_path}")
-    mirror_table_name = f"data_{session_id.replace('-', '_')}"
 
     try:
         with source_engine.connect() as conn:
@@ -65,7 +64,7 @@ def sync_table_if_changed(session_id: str, db_type: str, host: str, port: int,
         with mirror_engine.connect() as conn:
             try:
                 mirror_count = conn.execute(
-                    text(f"SELECT COUNT(*) FROM {mirror_table_name}")
+                    text(f"SELECT COUNT(*) FROM {table_name}")
                 ).scalar()
             except Exception:
                 mirror_count = -1

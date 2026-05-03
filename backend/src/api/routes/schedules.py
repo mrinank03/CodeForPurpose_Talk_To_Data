@@ -6,6 +6,8 @@ from sqlalchemy.orm import Session
 
 from src.scheduler.metadata_db import get_db, NotebookSchedule
 from src.scheduler.apscheduler_setup import add_job_to_scheduler, remove_job_from_scheduler
+from src.api.dependencies import get_current_user
+from src.api.routes.notebooks import _load_notebook
 
 router = APIRouter()
 
@@ -26,7 +28,11 @@ class ScheduleUpdate(BaseModel):
     enabled: Optional[bool] = None
 
 @router.post("/schedules", response_model=ScheduleResponse)
-def create_schedule(req: ScheduleCreate, db: Session = Depends(get_db)):
+def create_schedule(req: ScheduleCreate, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+    nb = _load_notebook(req.notebook_id)
+    if nb.get("user_id") != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Unauthorized")
+        
     schedule_id = str(uuid.uuid4())
     schedule = NotebookSchedule(
         schedule_id=schedule_id,
@@ -52,15 +58,23 @@ def create_schedule(req: ScheduleCreate, db: Session = Depends(get_db)):
     }
 
 @router.get("/schedules/notebook/{notebook_id}", response_model=List[ScheduleResponse])
-def get_schedules_for_notebook(notebook_id: str, db: Session = Depends(get_db)):
+def get_schedules_for_notebook(notebook_id: str, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+    nb = _load_notebook(notebook_id)
+    if nb.get("user_id") != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Unauthorized")
+        
     schedules = db.query(NotebookSchedule).filter(NotebookSchedule.notebook_id == notebook_id).all()
     return schedules
 
 @router.put("/schedules/{schedule_id}", response_model=ScheduleResponse)
-def update_schedule(schedule_id: str, req: ScheduleUpdate, db: Session = Depends(get_db)):
+def update_schedule(schedule_id: str, req: ScheduleUpdate, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
     schedule = db.query(NotebookSchedule).filter(NotebookSchedule.schedule_id == schedule_id).first()
     if not schedule:
         raise HTTPException(status_code=404, detail="Schedule not found")
+        
+    nb = _load_notebook(schedule.notebook_id)
+    if nb.get("user_id") != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Unauthorized")
         
     if req.cron_expression is not None:
         schedule.cron_expression = req.cron_expression
@@ -83,10 +97,14 @@ def update_schedule(schedule_id: str, req: ScheduleUpdate, db: Session = Depends
     return schedule
 
 @router.delete("/schedules/{schedule_id}")
-def delete_schedule(schedule_id: str, db: Session = Depends(get_db)):
+def delete_schedule(schedule_id: str, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
     schedule = db.query(NotebookSchedule).filter(NotebookSchedule.schedule_id == schedule_id).first()
     if not schedule:
         raise HTTPException(status_code=404, detail="Schedule not found")
+        
+    nb = _load_notebook(schedule.notebook_id)
+    if nb.get("user_id") != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Unauthorized")
         
     db.delete(schedule)
     db.commit()

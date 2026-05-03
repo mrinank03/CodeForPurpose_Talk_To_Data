@@ -37,23 +37,27 @@ export const useSession = () => {
   const [allSessions, setAllSessions] = useState<any[]>([]);
   const [precomputedInsights, setPrecomputedInsights] = useState<StoryCard[]>([]);
 
-  // Fetch ONLY sessions that belong to this browser (stored in localStorage)
+  // Fetch all sessions for the authenticated user from the backend
   const fetchSessions = async () => {
-    const myIds = getMySessionIds();
-    if (myIds.length === 0) { setAllSessions([]); return; }
-
     try {
-      // Fetch all sessions from the backend, then filter to only our IDs
       const res = await api.get('/api/sessions');
       const allBackend: any[] = res.data || [];
-      const mine = allBackend.filter((s: any) => myIds.includes(s.id));
 
-      // Clean up any stale IDs that no longer exist on the backend
-      const backendIds = new Set(mine.map((s: any) => s.id));
+      // Clean up local tracking keys
+      const backendIds = new Set(allBackend.map((s: any) => s.id));
+      const myIds = getMySessionIds();
       const cleaned = myIds.filter(id => backendIds.has(id));
       localStorage.setItem(SESSIONS_KEY, JSON.stringify(cleaned));
+      
+      const activeFromLocal = localStorage.getItem(ACTIVE_KEY);
+      if (activeFromLocal && !backendIds.has(activeFromLocal)) {
+        localStorage.removeItem(ACTIVE_KEY);
+        setSessionId(null);
+        setMeta(null);
+        setPrecomputedInsights([]);
+      }
 
-      setAllSessions(mine);
+      setAllSessions(allBackend);
     } catch (e) {
       console.error(e);
     }

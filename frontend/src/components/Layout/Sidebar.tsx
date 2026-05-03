@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ConnectorBadge } from '../Connectors/ConnectorBadge';
 import { NotebookList } from '../Notebooks/NotebookList';
-import { Star, Archive, Trash2, Plus, MessageSquare, FileText, ChevronDown, ChevronRight, LayoutDashboard, Users } from 'lucide-react';
+import { Star, Archive, Trash2, Plus, MessageSquare, FileText, ChevronDown, ChevronRight, LayoutDashboard, Users, LogOut } from 'lucide-react';
 import { MailingListManager } from '../Mailing/MailingListManager';
 
 export interface SessionItem {
@@ -259,7 +259,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       {/* Database Connector Section */}
-      <div className="border-t border-white/10 bg-[#0a0714]">
+      <div className="border-t border-white/10 bg-[#0a0714] flex flex-col">
         {connectorInfo ? (
           <ConnectorBadge
             connectionName={connectorInfo.connectionName}
@@ -289,6 +289,45 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </button>
           </div>
         )}
+
+        <div className="p-4 pt-2 border-t border-white/5 flex items-center justify-between">
+            <div className="flex items-center gap-2 overflow-hidden">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-natwest-primary to-natwest-teal flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+                    {(() => {
+                        try {
+                            const userStr = localStorage.getItem('datalens_user');
+                            if (userStr) {
+                                const user = JSON.parse(userStr);
+                                return user.name?.charAt(0).toUpperCase() || 'U';
+                            }
+                        } catch(e) {}
+                        return 'U';
+                    })()}
+                </div>
+                <div className="flex flex-col overflow-hidden">
+                    <span className="text-sm font-medium text-white truncate">
+                        {(() => {
+                            try {
+                                const userStr = localStorage.getItem('datalens_user');
+                                if (userStr) return JSON.parse(userStr).name;
+                            } catch(e) {}
+                            return 'User';
+                        })()}
+                    </span>
+                </div>
+            </div>
+            <button
+                onClick={() => {
+                    localStorage.removeItem('datalens_token');
+                    localStorage.removeItem('datalens_user');
+                    window.location.href = '/login';
+                }}
+                className="p-2 rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition-colors"
+                title="Sign out"
+            >
+                <LogOut className="w-4 h-4" />
+            </button>
+        </div>
       </div>
 
       {showMailingManager && (

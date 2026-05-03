@@ -7,7 +7,7 @@ from slowapi.errors import RateLimitExceeded
 from dotenv import load_dotenv
 
 from src.data.session_store import init_db
-from src.api.routes import upload, query, story, sessions, connectors, notebooks, schedules, mailing
+from src.api.routes import upload, query, story, sessions, connectors, notebooks, schedules, mailing, auth
 from src.scheduler.apscheduler_setup import init_scheduler
 
 load_dotenv()
@@ -44,6 +44,7 @@ def health_check():
     return {"status": "ok"}
 
 # Include routers
+app.include_router(auth.router, prefix="/api/auth", tags=["Auth"])
 app.include_router(upload.router, prefix="/api", tags=["Upload"])
 app.include_router(query.router, prefix="/api", tags=["Query"])
 app.include_router(story.router, prefix="/api", tags=["Story"])

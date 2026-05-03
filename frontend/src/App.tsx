@@ -25,9 +25,6 @@ const App: React.FC = () => {
     precomputedInsights, activateSession, deleteSession, updateSession
   } = useSession();
 
-  // Generate a stable session ID for the connector modal when no session exists yet
-  const [connectorSessionId] = useState(() => uuidv4());
-
   const { cards, runStory, isLoading: isStoryLoading, clearStory, reportData, runReport, isReportLoading, reportPrompt, reportError } = useStory(sessionId, precomputedInsights);
   const { messages, sendMessage, isLoading: isChatLoading, clearChat, setInitialMessages } = useChat(sessionId);
 
@@ -36,11 +33,8 @@ const App: React.FC = () => {
 
   // Connector state
   const [showConnectorModal, setShowConnectorModal] = useState(false);
-  const [connectorInfo, setConnectorInfo] = useState<{
-    connectionName: string;
-    dbType: string;
-    lastSyncedAt: string | null;
-  } | null>(null);
+  const [connectorSessionId, setConnectorSessionId] = useState<string>(() => uuidv4());
+  const [connectorInfo, setConnectorInfo] = useState<{ connectionName: string, dbType: string, lastSyncedAt: string | null } | null>(null);
 
   // Notebook state
   const [activeView, setActiveView] = useState<'chat' | 'notebook'>('chat');
@@ -77,6 +71,11 @@ const App: React.FC = () => {
     setActiveNotebookData(null);
   };
 
+  const handleOpenConnector = () => {
+    setConnectorSessionId(uuidv4());
+    setShowConnectorModal(true);
+  };
+
   const handleUpload = async (file: File) => {
     try {
       await uploadFile(file);
@@ -87,8 +86,9 @@ const App: React.FC = () => {
 
   const handleConnected = (connectionName: string, dbType: string) => {
     setConnectorInfo({ connectionName, dbType, lastSyncedAt: null });
+    clearChat();
     
-    const activeId = sessionId || connectorSessionId;
+    const activeId = connectorSessionId;
     const isNotebook = activeView === 'notebook';
 
     // Activate the session so DB functions work (skip tracking as a chat if we're in a Notebook)
@@ -157,7 +157,7 @@ const App: React.FC = () => {
         onSelectSession={handleSelectSession}
         onNewSession={handleNewSession}
         isCollapsed={false}
-        onOpenConnector={() => setShowConnectorModal(true)}
+        onOpenConnector={handleOpenConnector}
         connectorInfo={connectorInfo}
         onDisconnect={handleDisconnect}
         activeNotebookId={activeNotebookId}
@@ -180,7 +180,7 @@ const App: React.FC = () => {
                 const res = await uploadFile(f, false);
                 return res.session_id;
               }}
-              onOpenConnector={() => setShowConnectorModal(true)}
+              onOpenConnector={handleOpenConnector}
               isUploading={isUploading}
               uploadProgress={uploadProgress}
             />
@@ -202,7 +202,7 @@ const App: React.FC = () => {
 
               {/* Connect Database — prominent in the center */}
               <button
-                onClick={() => setShowConnectorModal(true)}
+                onClick={handleOpenConnector}
                 className="w-full py-4 px-6 rounded-xl bg-natwest-surface border-2 border-dashed border-natwest-primary/40 hover:border-natwest-primary hover:bg-natwest-primary/10 transition-all group flex items-center justify-center gap-3"
               >
                 <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-natwest-primary to-natwest-teal flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -307,7 +307,7 @@ const App: React.FC = () => {
       {/* Connector Modal */}
       {showConnectorModal && (
         <ConnectorModal
-          sessionId={sessionId || connectorSessionId}
+          sessionId={connectorSessionId}
           onClose={() => setShowConnectorModal(false)}
           onConnected={handleConnected}
         />

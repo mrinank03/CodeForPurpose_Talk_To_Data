@@ -1,7 +1,8 @@
 import os
 import json
-from fastapi import APIRouter, UploadFile, File, Request, HTTPException
+from fastapi import APIRouter, UploadFile, File, Request, HTTPException, Depends
 from langchain_core.prompts import PromptTemplate
+from src.api.dependencies import get_current_user
 from src.data.session_store import create_session
 from src.data.ingestor import ingest_file
 from src.semantic.profiler import profile_dataset
@@ -51,7 +52,7 @@ def generate_suggested_questions(profile: dict, metric_dict: dict) -> list[str]:
     ]
 
 @router.post("/upload")
-async def upload_file(request: Request, file: UploadFile = File(...)):
+async def upload_file(request: Request, file: UploadFile = File(...), current_user: dict = Depends(get_current_user)):
     ext = os.path.splitext(file.filename)[1].lower()
     if ext not in [".csv", ".xlsx", ".xls", ".pdf", ".png", ".jpg", ".jpeg"]:
         raise HTTPException(status_code=400, detail="Only CSV, Excel, PDF, and Image files are allowed.")
@@ -118,7 +119,7 @@ async def upload_file(request: Request, file: UploadFile = File(...)):
     
     # 6. Create session
     session_id = dummy_session 
-    create_session(session_id, file.filename, meta.row_count, meta.col_count)
+    create_session(session_id, file.filename, meta.row_count, meta.col_count, current_user["id"])
     
     return {
         "session_id": session_id,
@@ -128,4 +129,3 @@ async def upload_file(request: Request, file: UploadFile = File(...)):
         "profile": profile,
         "precomputed_insights": precomputed_cards,
     }
-

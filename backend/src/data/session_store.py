@@ -19,15 +19,27 @@ def init_db():
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
         cursor.execute('''
+            CREATE TABLE IF NOT EXISTS users (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                email TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                created_at TEXT
+            )
+        ''')
+        
+        cursor.execute('''
             CREATE TABLE IF NOT EXISTS sessions (
                 id TEXT PRIMARY KEY,
+                user_id TEXT,
                 filename TEXT,
                 upload_timestamp TEXT,
                 row_count INTEGER,
                 col_count INTEGER,
                 status TEXT,
                 is_starred INTEGER DEFAULT 0,
-                is_archived INTEGER DEFAULT 0
+                is_archived INTEGER DEFAULT 0,
+                FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
             )
         ''')
         
@@ -41,6 +53,12 @@ def init_db():
             cursor.execute('ALTER TABLE sessions ADD COLUMN is_archived INTEGER DEFAULT 0')
         except sqlite3.OperationalError:
             pass # Column already exists
+            
+        try:
+            cursor.execute('ALTER TABLE sessions ADD COLUMN user_id TEXT REFERENCES users(id) ON DELETE CASCADE')
+        except sqlite3.OperationalError:
+            pass # Column already exists
+
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS messages (
                 id TEXT PRIMARY KEY,
@@ -62,14 +80,40 @@ def init_db():
 # Call init_db on module import safely
 init_db()
 
-def create_session(session_id: str, filename: str, row_count: int, col_count: int) -> str:
+def create_user(user_id: str, name: str, email: str, password_hash: str):
     timestamp = datetime.utcnow().isoformat()
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
         cursor.execute('''
-            INSERT OR REPLACE INTO sessions (id, filename, upload_timestamp, row_count, col_count, status, is_starred, is_archived)
-            VALUES (?, ?, ?, ?, ?, ?, 0, 0)
-        ''', (session_id, filename, timestamp, row_count, col_count, "active"))
+            INSERT INTO users (id, name, email, password_hash, created_at)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (user_id, name, email, password_hash, timestamp))
+        conn.commit()
+
+def get_user_by_email(email: str) -> dict:
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM users WHERE email = ?', (email,))
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+def get_user_by_id(user_id: str) -> dict:
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM users WHERE id = ?', (user_id,))
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+def create_session(session_id: str, filename: str, row_count: int, col_count: int, user_id: str = None) -> str:
+    timestamp = datetime.utcnow().isoformat()
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT OR REPLACE INTO sessions (id, user_id, filename, upload_timestamp, row_count, col_count, status, is_starred, is_archived)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0)
+        ''', (session_id, user_id, filename, timestamp, row_count, col_count, "active"))
         conn.commit()
     return session_id
 
@@ -92,6 +136,13 @@ def update_session_flags(session_id: str, is_starred: bool = None, is_archived: 
         cursor.execute(f"UPDATE sessions SET {', '.join(updates)} WHERE id = ?", params)
         conn.commit()
 
+def update_session_counts(session_id: str, row_count: int, col_count: int):
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute("UPDATE sessions SET row_count = ?, col_count = ? WHERE id = ?",
+                        (row_count, col_count, session_id))
+        conn.commit()
+
 def get_session(session_id: str) -> dict:
     with sqlite3.connect(DB_PATH) as conn:
         conn.row_factory = sqlite3.Row
@@ -100,11 +151,14 @@ def get_session(session_id: str) -> dict:
         row = cursor.fetchone()
         return dict(row) if row else None
 
-def list_sessions() -> list[dict]:
+def list_sessions(user_id: str = None) -> list[dict]:
     with sqlite3.connect(DB_PATH) as conn:
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
-        cursor.execute('SELECT * FROM sessions ORDER BY upload_timestamp DESC')
+        if user_id:
+            cursor.execute('SELECT * FROM sessions WHERE user_id = ? ORDER BY upload_timestamp DESC', (user_id,))
+        else:
+            cursor.execute('SELECT * FROM sessions ORDER BY upload_timestamp DESC')
         return [dict(row) for row in cursor.fetchall()]
 
 def save_message(session_id: str, role: str, content: str, sql: str = None, 
