@@ -7,6 +7,7 @@ from src.data.session_store import save_message, get_messages, get_session
 from src.api.dependencies import get_current_user
 
 from src.agents.intent_classifier import classify_intent
+from src.agents.contextualizer import contextualize_question
 from src.agents.schema_resolver import resolve_schema
 from src.agents.sql_planner import generate_sql_plan
 from src.agents.executor import execute_with_retry
@@ -36,8 +37,13 @@ async def process_query(request: Request, body: QueryRequest, current_user: dict
     # 2. Intent
     intent = classify_intent(question)
     
-    # 3. Resolve Schema
-    resolved_schema = resolve_schema(question, session_id)
+    # Contextualize for follow-ups
+    contextualized_question = question
+    if intent in ["follow_up", "general"] and history:
+        contextualized_question = contextualize_question(question, history)
+    
+    # 3. Resolve Schema using contextualized question
+    resolved_schema = resolve_schema(contextualized_question, session_id)
     cols = [c["column_name"] for c in resolved_schema.relevant_columns]
     
     # GATE 1: Schema Rejection
@@ -74,7 +80,7 @@ async def process_query(request: Request, body: QueryRequest, current_user: dict
         )
     
     # 4. Plan SQL
-    plan = generate_sql_plan(question, intent, resolved_schema, history)
+    plan = generate_sql_plan(contextualized_question, intent, resolved_schema, history)
     
     # 5. Execute
     if not plan.sql:
@@ -87,7 +93,7 @@ async def process_query(request: Request, body: QueryRequest, current_user: dict
             columns_used=[], intent=intent, error=None
         )
         
-    exec_result = execute_with_retry(question, plan.sql, session_id, resolved_schema.full_schema_str)
+    exec_result = execute_with_retry(contextualized_question, plan.sql, session_id, resolved_schema.full_schema_str)
     
     # 6. Validate (first pass to get row counts and early confidence, assume grounding=1.0 for now)
     val_result = validate_execution(exec_result, resolved_schema, intent, grounding_score=1.0)
@@ -110,7 +116,7 @@ async def process_query(request: Request, body: QueryRequest, current_user: dict
         )
         
     # 7. Narrate and verify Grounding
-    ans, final_chart_type, grounding_score = narrate_result(question, val_result.data, val_result.columns_used, plan.chart_type)
+    ans, final_chart_type, grounding_score = narrate_result(contextualized_question, val_result.data, val_result.columns_used, plan.chart_type)
     
     # 8. Re-validate with actual grounding score
     val_result = validate_execution(exec_result, resolved_schema, intent, grounding_score=grounding_score)

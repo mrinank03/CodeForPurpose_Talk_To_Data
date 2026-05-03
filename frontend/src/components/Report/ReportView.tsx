@@ -145,64 +145,10 @@ export const ReportView: React.FC<Props> = ({ report, sessionId, prompt, onClose
           </div>
         </div>
 
-        {/* ── Statistical Summary ── */}
-        <div className="bg-[#151020] border border-white/10 rounded-xl overflow-hidden">
-          <div className="h-1 w-full bg-gradient-to-r from-sky-400 to-blue-500" />
-          <div className="p-4">
-            <h4 className="font-bold font-display text-white text-sm mb-3">📈 Statistical Summary</h4>
-            <div className="overflow-x-auto">
-              <table className="w-full text-[11px]">
-                <thead>
-                  <tr className="text-white/40 border-b border-white/5">
-                    <th className="text-left py-2 px-2 font-medium">Column</th>
-                    <th className="text-right py-2 px-2 font-medium">Min</th>
-                    <th className="text-right py-2 px-2 font-medium">Max</th>
-                    <th className="text-right py-2 px-2 font-medium">Mean</th>
-                    <th className="text-right py-2 px-2 font-medium">Median</th>
-                    <th className="text-right py-2 px-2 font-medium">Nulls</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {report.summary.filter(s => s.type === 'numeric').map((s, i) => (
-                    <tr key={i} className="border-b border-white/[0.03] hover:bg-white/[0.02]">
-                      <td className="py-2 px-2 text-white font-medium">{s.display_name}</td>
-                      <td className="py-2 px-2 text-right text-white/50">{s.min?.toLocaleString() ?? '—'}</td>
-                      <td className="py-2 px-2 text-right text-white/50">{s.max?.toLocaleString() ?? '—'}</td>
-                      <td className="py-2 px-2 text-right text-white/50">{s.mean?.toLocaleString() ?? '—'}</td>
-                      <td className="py-2 px-2 text-right text-white/50">{s.median?.toLocaleString() ?? '—'}</td>
-                      <td className="py-2 px-2 text-right text-white/30">{s.null_pct}%</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
 
-            {/* Categorical columns */}
-            {report.summary.filter(s => s.type === 'categorical').length > 0 && (
-              <div className="mt-4 space-y-2">
-                <p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Categorical Columns</p>
-                {report.summary.filter(s => s.type === 'categorical').map((s, i) => (
-                  <div key={i} className="bg-white/[0.02] rounded-lg p-2.5">
-                    <span className="text-white text-[11px] font-medium">{s.display_name}</span>
-                    <span className="text-white/30 text-[10px] ml-2">{s.unique_count} unique values</span>
-                    {s.top_values && (
-                      <div className="flex flex-wrap gap-1 mt-1.5">
-                        {Object.entries(s.top_values).slice(0, 5).map(([val, count]) => (
-                          <span key={val} className="text-[9px] bg-white/5 text-white/40 px-1.5 py-0.5 rounded">
-                            {val} ({count})
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
 
         {/* ── Chart Insights ── */}
-        {report.insights.map((card, i) => (
+        {report.insights.filter(card => !card.headline?.includes('No data to narrate') && !card.explanation?.includes('No data to narrate')).map((card, i) => (
           <div key={i} className="bg-[#151020] border border-white/10 rounded-xl overflow-hidden">
             <div className={`h-1 w-full bg-gradient-to-r ${ACCENT_COLORS[i % ACCENT_COLORS.length]}`} />
             <div className="p-4">
@@ -394,7 +340,9 @@ function buildPrintHtml(report: ReportData): string {
 
   // Build insight chart cards
   const ACCENT_BORDERS = ['#7B4FAF', '#00A89A', '#F59E0B', '#EF4444', '#3B82F6'];
-  const chartCards = report.insights.map((card, i) => {
+  const validInsights = report.insights.filter(card => !card.headline?.includes('No data to narrate') && !card.explanation?.includes('No data to narrate'));
+  
+  const chartCards = validInsights.map((card, i) => {
     const chartInfo = buildChartJsConfig(card);
     const borderColor = ACCENT_BORDERS[i % ACCENT_BORDERS.length];
 
@@ -422,7 +370,7 @@ function buildPrintHtml(report: ReportData): string {
   }).join('');
 
   // Build Chart.js initialization script
-  const chartScripts = report.insights.map((card, i) => {
+  const chartScripts = validInsights.map((card, i) => {
     const chartInfo = buildChartJsConfig(card);
     if (!chartInfo || chartInfo.type === 'table') return '';
     return `

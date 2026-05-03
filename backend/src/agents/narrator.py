@@ -55,12 +55,15 @@ def narrate_result(question: str, data: list[dict], column_names: list[str], ini
     if not data:
         return "No data to narrate.", "none", 0.5
         
-    # Verify chart type
-    confirmed_chart_type = initial_chart_type
-    if confirmed_chart_type == "none" or confirmed_chart_type == "table":
-        recom = recommend_chart_type(data, column_names)
-        if recom != "table":
-            confirmed_chart_type = recom
+    # Verify chart type — Always validate against the actual data shape and user intent
+    confirmed_chart_type = recommend_chart_type(data, column_names, question)
+    
+    # If the LLM suggested a specific chart (like 'pie' or 'line') and it's valid for this data,
+    # we can respect it, but recommend_chart_type is the source of truth for 'none'.
+    if initial_chart_type in ("bar", "line", "pie") and len(data) > 1:
+        # Only override if the recommendation was 'table' (neutral)
+        if confirmed_chart_type == "table":
+            confirmed_chart_type = initial_chart_type
     
     # Build pre-computed summary stats (Python, not LLM)
     data_summary = _build_data_summary(data, column_names)

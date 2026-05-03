@@ -1,0 +1,76 @@
+{
+  "id": "79ef7699-6551-48e0-9454-92236a8e9e4f",
+  "user_id": "94a39d9b-5c32-42fc-a333-ab4ec7ce9d48",
+  "title": "Weekly Sales Report",
+  "session_id": "17954617-d334-4dd6-b90f-fd05187d3201",
+  "created_at": "2026-05-03T19:01:41.437160",
+  "updated_at": "2026-05-03T19:33:36.765982",
+  "cells": [
+    {
+      "id": "2350deb8-534b-49a1-a7cc-b61132e5df60",
+      "type": "text",
+      "content": "# Sales Report",
+      "result": null,
+      "result_type": null
+    },
+    {
+      "id": "7979b6e4-0d16-434f-91a2-47ff718a5a9b",
+      "type": "prompt",
+      "content": "Show revenue by region with a bar graph.",
+      "result": {
+        "chart_type": "bar",
+        "chart_data": [
+          {
+            "region": "North",
+            "total_revenue": 6896128.77
+          },
+          {
+            "region": "West",
+            "total_revenue": 6700125.58
+          },
+          {
+            "region": "East",
+            "total_revenue": 6451703.18
+          },
+          {
+            "region": "Central",
+            "total_revenue": 6043966.8
+          },
+          {
+            "region": "South",
+            "total_revenue": 5808654.14
+          }
+        ],
+        "answer": "The total revenue across all regions is $31,900,578.47. The North region generated the highest revenue at $6,896,128.77, while the South region had the lowest revenue at $5,808,654.14. On average, each region brought in $6,380,115.69 in revenue."
+      },
+      "result_type": "chart"
+    },
+    {
+      "id": "412b8448-e07c-45b4-8e70-10078cd446a2",
+      "type": "text",
+      "content": "## Most Popular Product",
+      "result": null,
+      "result_type": null
+    },
+    {
+      "id": "0933fa37-9b89-4bf5-9c74-30a26ea04608",
+      "type": "prompt",
+      "content": "Show the 2 most popular products in the south region.",
+      "result": {
+        "chart_type": "bar",
+        "chart_data": [
+          {
+            "product_name": "Dev Tools",
+            "total_quantity_sold": 314
+          },
+          {
+            "product_name": "Cloud Storage",
+            "total_quantity_sold": 270
+          }
+        ],
+        "answer": "In the south region, the two most popular products are Dev Tools, with 314 units sold, and Cloud Storage, with 270 units sold. A total of 584 units were sold across these two products."
+      },
+      "result_type": "chart"
+    }
+  ]
+}
