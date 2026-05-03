@@ -81,8 +81,13 @@ def execute_with_retry(question: str, initial_sql: str, session_id: str, schema_
                 "User Question: {question}\n"
                 "Failed SQL:\n{sql}\n"
                 "Error Message:\n{error}\n\n"
-                "Instructions:\n"
-                "Fix the SQL query to resolve the error. ONLY output a JSON object with 'sql' key containing the fixed query."
+                "═══ RULES ═══\n"
+                "1. ONLY use columns that exist in the schema above. Do NOT invent new columns.\n"
+                "2. Do NOT invent new tables. Use only the table referenced in the failed SQL.\n"
+                "3. Use SQLite-compatible syntax only.\n"
+                "4. CRITICAL: SQLite is CASE-SENSITIVE. Use LOWER() for all text comparisons.\n"
+                "5. WINDOW FUNCTIONS: Apply WHERE filters FIRST in a CTE/subquery, THEN compute window functions on the filtered result.\n\n"
+                "Fix the SQL query to resolve the error. ONLY output a JSON object with 'sql' key containing the fixed query. No markdown."
             )
             res = prompt.format(schema=schema_str, question=question, sql=current_sql, error=last_error_message)
             llm_res = llm.invoke(res)

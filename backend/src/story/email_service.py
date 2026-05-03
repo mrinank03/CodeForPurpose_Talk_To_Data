@@ -150,7 +150,8 @@ def _send_via_smtp(recipient: str, subject: str, html_body: str, pdf_bytes: byte
             server.starttls()
             server.ehlo()
             server.login(smtp_user, smtp_pass)
-            server.sendmail(smtp_from, recipient, msg.as_string())
+            recipients_list = [r.strip() for r in recipient.split(",")] if "," in recipient else [recipient]
+            server.sendmail(smtp_from, recipients_list, msg.as_string())
 
         print(f"[EmailService] SMTP: sent to {recipient}")
         return {"success": True, "message": f"Report sent to {recipient}"}
@@ -174,9 +175,10 @@ def _send_via_resend(api_key: str, recipient: str, subject: str, html_body: str,
         resend.api_key = api_key
         from_addr = os.getenv("EMAIL_FROM", "DataLens <onboarding@resend.dev>")
 
+        recipients_list = [r.strip() for r in recipient.split(",")] if "," in recipient else [recipient]
         params = {
             "from": from_addr,
-            "to": [recipient],
+            "to": recipients_list,
             "subject": subject,
             "html": html_body,
         }

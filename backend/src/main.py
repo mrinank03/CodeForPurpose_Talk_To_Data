@@ -7,7 +7,7 @@ from slowapi.errors import RateLimitExceeded
 from dotenv import load_dotenv
 
 from src.data.session_store import init_db
-from src.api.routes import upload, query, story, sessions, connectors, notebooks, schedules
+from src.api.routes import upload, query, story, sessions, connectors, notebooks, schedules, mailing
 from src.scheduler.apscheduler_setup import init_scheduler
 
 load_dotenv()
@@ -51,6 +51,7 @@ app.include_router(sessions.router, prefix="/api", tags=["Sessions"])
 app.include_router(connectors.router, prefix="/api", tags=["Connectors"])
 app.include_router(notebooks.router, prefix="/api", tags=["Notebooks"])
 app.include_router(schedules.router, prefix="/api", tags=["Schedules"])
+app.include_router(mailing.router, prefix="/api", tags=["Mailing"])
 
 # Global exception handler to ensure CORS headers are sent even on crashes
 from fastapi.responses import JSONResponse

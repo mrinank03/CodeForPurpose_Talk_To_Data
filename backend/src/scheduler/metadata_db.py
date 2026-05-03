@@ -33,6 +33,30 @@ class EncryptedCredentials(Base):
     encrypted_blob = Column(LargeBinary) # JSON dumped and encrypted
     created_at = Column(DateTime, default=datetime.utcnow)
 
+class MailingGroup(Base):
+    __tablename__ = "mailing_groups"
+
+    group_id = Column(String, primary_key=True, index=True)
+    name = Column(String, unique=True, index=True)
+    description = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+class MailingContact(Base):
+    __tablename__ = "mailing_contacts"
+
+    contact_id = Column(String, primary_key=True, index=True)
+    name = Column(String)
+    email = Column(String, unique=True, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+class GroupMembership(Base):
+    __tablename__ = "group_memberships"
+
+    membership_id = Column(String, primary_key=True, index=True)
+    group_id = Column(String, index=True)
+    contact_id = Column(String, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
 # Create tables
 Base.metadata.create_all(bind=engine)
 

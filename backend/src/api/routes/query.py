@@ -38,7 +38,15 @@ async def process_query(request: Request, body: QueryRequest):
     # GATE 1: Schema Rejection
     MIN_SCHEMA_SCORE = 0.10
     if resolved_schema.schema_score < MIN_SCHEMA_SCORE:
-        ans = "This question does not appear related to the uploaded dataset. Please ask about columns in this table."
+        # Extract available column names from schema string for a helpful message
+        available_cols = [c["column_name"] for c in resolved_schema.relevant_columns] if resolved_schema.relevant_columns else []
+        col_hint = ""
+        if available_cols:
+            col_hint = f" Available columns include: {', '.join(available_cols)}."
+        elif resolved_schema.full_schema_str:
+            col_hint = f" Schema: {resolved_schema.full_schema_str}"
+        
+        ans = f"I couldn't confidently match your question to the uploaded dataset. Try rephrasing using column names from your data.{col_hint}"
         save_message(session_id, role="assistant", content=ans, intent=intent)
         return QueryResponse(
             answer=ans, sql=None, chart_type="none", chart_data=None, 

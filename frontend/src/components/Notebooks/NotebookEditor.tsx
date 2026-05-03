@@ -27,6 +27,7 @@ export const NotebookEditor: React.FC<NotebookEditorProps> = ({
   const [draggedCellId, setDraggedCellId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
+  const [isDeleted, setIsDeleted] = useState(false);
   const [runProgress, setRunProgress] = useState<{ current: number; total: number } | null>(null);
   const [titleEditing, setTitleEditing] = useState(false);
   const [titleInput, setTitleInput] = useState(notebook.title);
@@ -37,9 +38,11 @@ export const NotebookEditor: React.FC<NotebookEditorProps> = ({
   useEffect(() => {
     setNotebook(initialNotebook);
     setTitleInput(initialNotebook.title);
+    setIsDeleted(false);
   }, [initialNotebook]);
 
   const handleSave = async (nb = notebook) => {
+    if (isDeleted) return;
     setIsSaving(true);
     try {
       const saved = await saveNotebook(nb.id, nb.title, nb.cells, nb.session_id);
@@ -47,19 +50,25 @@ export const NotebookEditor: React.FC<NotebookEditorProps> = ({
       onUpdateSummary(saved);
       setSaveMessage('Saved');
       setTimeout(() => setSaveMessage(''), 2000);
-    } catch (e) {
-      setSaveMessage('Error saving');
+    } catch (e: any) {
+      if (e.response?.status === 404) {
+        setSaveMessage('Notebook deleted');
+        setIsDeleted(true);
+      } else {
+        setSaveMessage('Error saving');
+      }
     } finally {
       setIsSaving(false);
     }
   };
 
   useEffect(() => {
+    if (isDeleted) return;
     const interval = setInterval(() => {
       handleSave(notebook);
     }, 30000);
     return () => clearInterval(interval);
-  }, [notebook]);
+  }, [notebook, isDeleted]);
 
   useEffect(() => {
     if (titleInput !== notebook.title) {
@@ -223,7 +232,7 @@ export const NotebookEditor: React.FC<NotebookEditorProps> = ({
           <button
             onClick={handleRunAll}
             disabled={!!runProgress}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-natwest-primary/20 hover:bg-natwest-primary/40 text-natwest-primary text-sm font-bold transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-bold transition-colors disabled:opacity-50 shadow-lg shadow-emerald-500/25"
           >
             {runProgress ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
             Run All

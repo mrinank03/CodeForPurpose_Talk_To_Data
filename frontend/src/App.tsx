@@ -87,14 +87,21 @@ const App: React.FC = () => {
 
   const handleConnected = (connectionName: string, dbType: string) => {
     setConnectorInfo({ connectionName, dbType, lastSyncedAt: null });
-    // Activate the session so chat UI appears
+    
     const activeId = sessionId || connectorSessionId;
-    activateSession(activeId);
+    const isNotebook = activeView === 'notebook';
+
+    // Activate the session so DB functions work (skip tracking as a chat if we're in a Notebook)
+    activateSession(activeId, !isNotebook);
 
     // If we're inside a notebook without a session, attach this session to the notebook automatically
-    if (activeView === 'notebook' && activeNotebookData && !activeNotebookData.session_id) {
+    if (isNotebook && activeNotebookData && !activeNotebookData.session_id) {
        const nb = { ...activeNotebookData, session_id: activeId };
        setActiveNotebookData(nb);
+    }
+    
+    if (!isNotebook) {
+      fetchSessions();
     }
   };
 
@@ -129,6 +136,14 @@ const App: React.FC = () => {
     setNotebookRefreshTrigger(prev => prev + 1);
   };
 
+  const handleDeleteNotebook = (id: string) => {
+    if (activeNotebookId === id) {
+      setActiveNotebookId(null);
+      setActiveNotebookData(null);
+      setActiveView('chat');
+    }
+  };
+
   // Determine if chat should be shown:
   // Either we have uploaded data (meta exists) OR a database is connected
   const hasDataSource = !!meta || !!connectorInfo;
@@ -147,6 +162,7 @@ const App: React.FC = () => {
         onDisconnect={handleDisconnect}
         activeNotebookId={activeNotebookId}
         onOpenNotebook={handleOpenNotebook}
+        onDeleteNotebook={handleDeleteNotebook}
         notebookRefreshTrigger={notebookRefreshTrigger}
         onDeleteSession={deleteSession}
         onUpdateSession={updateSession}
@@ -161,7 +177,7 @@ const App: React.FC = () => {
               onBack={handleBackToChat}
               onUpdateSummary={handleUpdateSummary}
               onUploadFile={async (f) => {
-                const res = await uploadFile(f);
+                const res = await uploadFile(f, false);
                 return res.session_id;
               }}
               onOpenConnector={() => setShowConnectorModal(true)}

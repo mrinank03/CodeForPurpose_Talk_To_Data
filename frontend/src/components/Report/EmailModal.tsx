@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
+import { Mail, X, Users } from 'lucide-react';
+import { ContactPicker } from '../Mailing/ContactPicker';
 
 interface Props {
   onClose: () => void;
-  onSend: (email: string) => void;
+  onSend: (emails: string) => void;
   isSending: boolean;
 }
 
 export const EmailModal: React.FC<Props> = ({ onClose, onSend, isSending }) => {
-  const [email, setEmail] = useState('');
-
-  const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const [selectedEmails, setSelectedEmails] = useState<string[]>([]);
+  const [showPicker, setShowPicker] = useState(false);
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
@@ -19,27 +20,45 @@ export const EmailModal: React.FC<Props> = ({ onClose, onSend, isSending }) => {
       >
         <div className="flex items-center gap-3 mb-5">
           <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
-            <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-            </svg>
+            <Mail className="w-4 h-4 text-white" />
           </div>
           <div>
             <h2 className="text-white font-bold text-base">Email Report</h2>
-            <p className="text-white/40 text-xs">Send AI insights report to any email</p>
+            <p className="text-white/40 text-xs">Send AI insights report to selected recipients</p>
           </div>
         </div>
 
         <div className="space-y-3">
-          <div>
-            <label className="text-xs text-white/50 font-medium mb-1.5 block">Recipient Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              placeholder="colleague@company.com"
-              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white text-sm placeholder-white/20 focus:outline-none focus:border-natwest-primary/50 focus:ring-1 focus:ring-natwest-primary/30 transition-all"
-              autoFocus
-            />
+          <div className="flex flex-col gap-2">
+            <label className="text-xs text-white/50 font-medium mb-1.5 block">Recipients</label>
+            <div className="bg-[#0a0714] border border-white/10 rounded-lg p-3 min-h-[60px] flex flex-col gap-3">
+              <div className="flex flex-wrap gap-2">
+                {selectedEmails.length === 0 && (
+                  <span className="text-sm text-white/30 italic">No recipients selected</span>
+                )}
+                {selectedEmails.map(email => (
+                  <div key={email} className="flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-md">
+                    <Mail className="w-3 h-3 text-emerald-400" />
+                    <span className="text-xs text-emerald-300 font-medium">{email}</span>
+                    <button 
+                      type="button"
+                      onClick={() => setSelectedEmails(prev => prev.filter(e => e !== email))}
+                      className="ml-1 text-emerald-400/50 hover:text-emerald-400 transition-colors"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowPicker(true)}
+                className="self-start text-xs font-bold text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5"
+              >
+                <Users className="w-3.5 h-3.5" />
+                Select Recipients
+              </button>
+            </div>
           </div>
         </div>
 
@@ -51,8 +70,8 @@ export const EmailModal: React.FC<Props> = ({ onClose, onSend, isSending }) => {
             Cancel
           </button>
           <button
-            onClick={() => onSend(email)}
-            disabled={!isValidEmail || isSending}
+            onClick={() => onSend(selectedEmails.join(','))}
+            disabled={selectedEmails.length === 0 || isSending}
             className="flex-1 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-xl text-sm font-bold text-white transition-all disabled:opacity-40 hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2"
           >
             {isSending ? (
@@ -74,6 +93,17 @@ export const EmailModal: React.FC<Props> = ({ onClose, onSend, isSending }) => {
           </button>
         </div>
       </div>
+
+      {showPicker && (
+        <ContactPicker 
+          initialSelectedEmails={selectedEmails}
+          onClose={() => setShowPicker(false)}
+          onConfirm={(emails) => {
+            setSelectedEmails(emails);
+            setShowPicker(false);
+          }}
+        />
+      )}
     </div>
   );
 };

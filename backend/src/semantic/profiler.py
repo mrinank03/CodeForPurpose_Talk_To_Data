@@ -67,9 +67,10 @@ def profile_dataset(df: pd.DataFrame, session_id: str) -> tuple[dict, dict]:
     llm = get_narrator_llm()
     prompt_temp = PromptTemplate.from_template(
         "You are a data analyst. Given these column names and sample values from a business dataset, "
-        "write a one-sentence plain-English description for each column explaining what it likely represents in a business context. "
-        "Output as JSON object with column names as keys and descriptions as values.\n\n"
-        "Profile:\n{profile_json}"
+        "write a one-sentence plain-English description for each column explaining what it likely represents in a business context.\n\n"
+        "Profile:\n{profile_json}\n\n"
+        "Output ONLY a valid JSON object with column names as keys and descriptions as values. "
+        "No markdown. No explanation. No preamble."
     )
     chain = prompt_temp | llm
     

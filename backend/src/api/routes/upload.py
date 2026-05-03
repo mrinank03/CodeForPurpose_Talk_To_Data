@@ -14,18 +14,19 @@ router = APIRouter()
 MAX_MB = int(os.getenv("MAX_UPLOAD_SIZE_MB", "20")) * 1024 * 1024
 
 def generate_suggested_questions(profile: dict, metric_dict: dict) -> list[str]:
+    # Build a clean column summary instead of raw-truncating JSON
+    col_summary = "\n".join([f"- {col} ({info.get('type', 'unknown')}): {metric_dict.get(col, 'N/A')}" for col, info in profile.items()])
+    
     prompt = PromptTemplate.from_template(
-        "You are an expert data analyst. Based on the following dataset profile and column explanations, "
+        "You are an expert data analyst. Based on the following dataset columns and their descriptions, "
         "suggest 5 SHORT business questions a user could ask about this data. "
         "Each question should be under 12 words.\n\n"
-        "Profile:\n{profile}\n\n"
-        "Column Meanings:\n{metrics}\n\n"
-        "Output ONLY a JSON array of 5 strings. No markdown."
+        "Dataset Columns:\n{col_summary}\n\n"
+        "Output ONLY a JSON array of 5 strings. No markdown. No explanation."
     )
     llm = get_narrator_llm()
     res = (prompt | llm).invoke({
-        "profile": json.dumps(profile)[0:2000], 
-        "metrics": json.dumps(metric_dict)
+        "col_summary": col_summary
     })
     
     content = res.content.strip()

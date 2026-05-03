@@ -73,7 +73,7 @@ export const useSession = () => {
     }
   };
 
-  const uploadFile = useCallback(async (file: File) => {
+  const uploadFile = useCallback(async (file: File, trackAsChat: boolean = true) => {
     setIsUploading(true);
     setUploadProgress(0);
 
@@ -93,17 +93,20 @@ export const useSession = () => {
       
       setUploadProgress(100);
       const newSessionId = res.data.session_id;
-      setSessionId(newSessionId);
-      localStorage.setItem(ACTIVE_KEY, newSessionId);
-      addMySessionId(newSessionId);           // <-- track in localStorage
       
-      setMeta(res.data.dataset_meta);
-      setMetricDict(res.data.metric_dictionary);
-      setProfile(res.data.profile);
-      setSuggestedQuestions(res.data.suggested_questions || []);
-      setPrecomputedInsights(res.data.precomputed_insights || []);
-      
-      await fetchSessions();
+      if (trackAsChat) {
+        setSessionId(newSessionId);
+        localStorage.setItem(ACTIVE_KEY, newSessionId);
+        addMySessionId(newSessionId);           // <-- track in localStorage
+        
+        setMeta(res.data.dataset_meta);
+        setMetricDict(res.data.metric_dictionary);
+        setProfile(res.data.profile);
+        setSuggestedQuestions(res.data.suggested_questions || []);
+        setPrecomputedInsights(res.data.precomputed_insights || []);
+        
+        await fetchSessions();
+      }
       
       setIsUploading(false);
       return res.data;
@@ -121,10 +124,12 @@ export const useSession = () => {
   };
 
   // Activate a session by ID without loading from the API (used by DB connector)
-  const activateSession = (id: string) => {
+  const activateSession = (id: string, trackAsChat: boolean = true) => {
     setSessionId(id);
-    localStorage.setItem(ACTIVE_KEY, id);
-    addMySessionId(id);                       // <-- track in localStorage
+    if (trackAsChat) {
+      localStorage.setItem(ACTIVE_KEY, id);
+      addMySessionId(id);                       // <-- track in localStorage
+    }
   };
 
   // Delete a session and remove from local tracking

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { ConnectorBadge } from '../Connectors/ConnectorBadge';
 import { NotebookList } from '../Notebooks/NotebookList';
-import { Star, Archive, Trash2, Plus, MessageSquare, FileText, ChevronDown, ChevronRight, LayoutDashboard } from 'lucide-react';
+import { Star, Archive, Trash2, Plus, MessageSquare, FileText, ChevronDown, ChevronRight, LayoutDashboard, Users } from 'lucide-react';
+import { MailingListManager } from '../Mailing/MailingListManager';
 
 export interface SessionItem {
   id: string;
@@ -24,6 +25,7 @@ interface SidebarProps {
   onDisconnect: () => void;
   activeNotebookId?: string | null;
   onOpenNotebook?: (id: string) => void;
+  onDeleteNotebook?: (id: string) => void;
   notebookRefreshTrigger?: number;
   onDeleteSession?: (id: string) => void;
   onUpdateSession?: (id: string, updates: { is_starred?: boolean; is_archived?: boolean }) => void;
@@ -54,10 +56,13 @@ function formatRelativeDate(timestamp: string): string {
 
 export const Sidebar: React.FC<SidebarProps> = ({ 
   sessions, activeSessionId, onSelectSession, onNewSession, isCollapsed, onOpenConnector, connectorInfo, onDisconnect,
-  activeNotebookId = null, onOpenNotebook = () => {}, notebookRefreshTrigger = 0,
+  activeNotebookId = null, onOpenNotebook = () => {}, onDeleteNotebook = () => {}, notebookRefreshTrigger = 0,
   onDeleteSession, onUpdateSession
 }) => {
+  const [showStarred, setShowStarred] = useState(true);
+  const [showRecent, setShowRecent] = useState(true);
   const [showArchived, setShowArchived] = useState(false);
+  const [showMailingManager, setShowMailingManager] = useState(false);
 
   if (isCollapsed) return null;
 
@@ -122,6 +127,31 @@ export const Sidebar: React.FC<SidebarProps> = ({
     );
   };
 
+  /** Reusable collapsible section header */
+  const SectionHeader: React.FC<{
+    icon: React.ReactNode;
+    label: string;
+    count: number;
+    isOpen: boolean;
+    onToggle: () => void;
+    accentColor?: string;
+  }> = ({ icon, label, count, isOpen, onToggle, accentColor = 'text-white/40' }) => (
+    <button
+      onClick={onToggle}
+      className="w-full flex items-center justify-between px-1 py-2.5 text-white/50 hover:text-white/80 transition-colors"
+    >
+      <div className="flex items-center gap-2">
+        {isOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+        <span className={`text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 ${accentColor}`}>
+          {icon} {label}
+        </span>
+      </div>
+      {count > 0 && (
+        <span className="text-[11px] bg-white/10 px-2 py-0.5 rounded font-medium">{count}</span>
+      )}
+    </button>
+  );
+
   return (
     <div className="w-72 border-r border-white/10 bg-[#0a0714] flex flex-col h-full flex-shrink-0">
       {/* Header */}
@@ -130,90 +160,96 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <h1 className="font-display font-bold text-lg text-white tracking-wide">DataLens</h1>
       </div>
 
-      {/* Primary Actions Grid */}
-      <div className="p-4 grid grid-cols-2 gap-3 border-b border-white/10 bg-white/[0.02]">
+      {/* Primary Actions Grid — Vivid Buttons */}
+      <div className="p-4 grid grid-cols-2 gap-3 border-b border-white/10">
         <button
           onClick={onNewSession}
-          className="flex flex-col items-center justify-center gap-2 py-3 px-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-white transition-all group"
+          className="flex flex-col items-center justify-center gap-2.5 py-4 px-2 rounded-xl bg-natwest-primary hover:bg-natwest-primary/80 text-white transition-all group shadow-lg shadow-natwest-primary/25"
         >
-          <div className="w-8 h-8 rounded-lg bg-natwest-primary/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-            <MessageSquare className="w-4 h-4 text-natwest-primary" />
+          <div className="w-9 h-9 rounded-lg bg-white/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+            <MessageSquare className="w-5 h-5 text-white" />
           </div>
-          <span className="text-[11px] font-semibold text-white/80 group-hover:text-white">Analysis Chat</span>
+          <span className="text-xs font-bold text-white">Analysis Chat</span>
         </button>
         
-        {/* We keep New Notebook logic inside NotebookList or trigger it from here if exposed. For now, it stays in NotebookList but we style NotebookList's button instead. Actually we'll just let NotebookList handle its own button. */}
         <button
           onClick={() => {
-            // Emulate clicking the NotebookList new button by dispatching an event or we can just let NotebookList handle it below.
             const btn = document.getElementById('new-notebook-btn');
             if (btn) btn.click();
           }}
-          className="flex flex-col items-center justify-center gap-2 py-3 px-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-white transition-all group"
+          className="flex flex-col items-center justify-center gap-2.5 py-4 px-2 rounded-xl bg-natwest-teal hover:bg-natwest-teal/80 text-white transition-all group shadow-lg shadow-natwest-teal/25"
         >
-          <div className="w-8 h-8 rounded-lg bg-natwest-teal/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-            <FileText className="w-4 h-4 text-natwest-teal" />
+          <div className="w-9 h-9 rounded-lg bg-white/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+            <FileText className="w-5 h-5 text-white" />
           </div>
-          <span className="text-[11px] font-semibold text-white/80 group-hover:text-white">Data Notebook</span>
+          <span className="text-xs font-bold text-white">Data Notebook</span>
         </button>
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 overflow-y-auto px-3 py-4 custom-scrollbar flex flex-col gap-6">
+      <div className="flex-1 overflow-y-auto px-3 py-4 custom-scrollbar flex flex-col gap-2">
         
-        {/* Starred Sessions */}
+        {/* ── Starred Sessions (collapsible) ── */}
         {starredSessions.length > 0 && (
           <div>
-            <h2 className="text-[10px] font-semibold text-white/40 uppercase tracking-widest mb-2 px-1 flex items-center gap-1.5">
-              <Star className="w-3 h-3 text-yellow-500" /> Starred
-            </h2>
-            <div className="space-y-1">
-              {starredSessions.map(renderSessionItem)}
-            </div>
+            <SectionHeader
+              icon={<Star className="w-3 h-3 text-yellow-500" />}
+              label="Starred"
+              count={starredSessions.length}
+              isOpen={showStarred}
+              onToggle={() => setShowStarred(!showStarred)}
+              accentColor="text-yellow-500/70"
+            />
+            {showStarred && (
+              <div className="space-y-1 mt-1">
+                {starredSessions.map(renderSessionItem)}
+              </div>
+            )}
           </div>
         )}
 
-        {/* Active Sessions */}
+        {/* ── Recent Chats (collapsible) ── */}
         <div>
-          <h2 className="text-[10px] font-semibold text-white/40 uppercase tracking-widest mb-2 px-1 flex items-center gap-1.5">
-            <LayoutDashboard className="w-3 h-3" /> Recent Chats
-          </h2>
-          <div className="space-y-1">
-            {activeSessions.length === 0 ? (
-              <div className="text-center py-4 text-xs text-white/30 italic">No recent chats</div>
-            ) : (
-              activeSessions.map(renderSessionItem)
-            )}
-          </div>
+          <SectionHeader
+            icon={<LayoutDashboard className="w-3 h-3" />}
+            label="Recent Chats"
+            count={activeSessions.length}
+            isOpen={showRecent}
+            onToggle={() => setShowRecent(!showRecent)}
+          />
+          {showRecent && (
+            <div className="space-y-1 mt-1">
+              {activeSessions.length === 0 ? (
+                <div className="text-center py-4 text-xs text-white/30 italic">No recent chats</div>
+              ) : (
+                activeSessions.map(renderSessionItem)
+              )}
+            </div>
+          )}
         </div>
 
-        {/* Notebooks List Container */}
+        {/* ── Notebooks (already has its own collapsible in NotebookList) ── */}
         <div>
           <NotebookList 
             activeNotebookId={activeNotebookId}
             onOpenNotebook={onOpenNotebook}
+            onDeleteNotebook={onDeleteNotebook}
             refreshTrigger={notebookRefreshTrigger}
           />
         </div>
 
-        {/* Archived Sessions */}
+        {/* ── Archived Sessions (collapsible, collapsed by default) ── */}
         {archivedSessions.length > 0 && (
-          <div className="mt-auto pt-4 border-t border-white/5">
-            <button 
-              onClick={() => setShowArchived(!showArchived)}
-              className="w-full flex items-center justify-between px-1 py-2 text-white/40 hover:text-white/70 transition-colors"
-            >
-              <div className="flex items-center gap-2">
-                {showArchived ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-                <span className="text-[10px] font-semibold uppercase tracking-widest flex items-center gap-1">
-                  <Archive className="w-3 h-3" /> Archived
-                </span>
-              </div>
-              <span className="text-[10px] bg-white/10 px-1.5 py-0.5 rounded">{archivedSessions.length}</span>
-            </button>
-            
+          <div className="pt-2 border-t border-white/5">
+            <SectionHeader
+              icon={<Archive className="w-3 h-3" />}
+              label="Archived"
+              count={archivedSessions.length}
+              isOpen={showArchived}
+              onToggle={() => setShowArchived(!showArchived)}
+            />
             {showArchived && (
-              <div className="space-y-1 mt-2">
+              <div className="space-y-1 mt-1">
                 {archivedSessions.map(renderSessionItem)}
               </div>
             )}
@@ -232,7 +268,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             onDisconnect={onDisconnect}
           />
         ) : (
-          <div className="p-4">
+          <div className="p-4 flex flex-col gap-2">
             <button
               onClick={onOpenConnector}
               className="w-full py-2.5 px-4 rounded-xl bg-natwest-primary/10 hover:bg-natwest-primary/20 border border-natwest-primary/30 hover:border-natwest-primary/50 text-white/90 transition-all text-sm font-medium flex items-center justify-center gap-2"
@@ -244,9 +280,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </svg>
               Connect Database
             </button>
+            <button
+              onClick={() => setShowMailingManager(true)}
+              className="w-full py-2.5 px-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 hover:text-white transition-all text-sm font-medium flex items-center justify-center gap-2"
+            >
+              <Users className="w-4 h-4" />
+              Mailing Lists
+            </button>
           </div>
         )}
       </div>
+
+      {showMailingManager && (
+        <MailingListManager onClose={() => setShowMailingManager(false)} />
+      )}
     </div>
   );
 };

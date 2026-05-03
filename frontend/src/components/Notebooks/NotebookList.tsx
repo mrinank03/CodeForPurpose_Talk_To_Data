@@ -4,25 +4,29 @@ import { NotebookSummary } from '../../types/notebook';
 import { listNotebooks, createNotebook, deleteNotebook } from '../../services/notebookApi';
 
 interface NotebookListProps {
-  activeNotebookId: string | null;
+  activeNotebookId?: string | null;
   onOpenNotebook: (id: string) => void;
-  // Allows parent to trigger refresh
+  onDeleteNotebook?: (id: string) => void;
   refreshTrigger?: number;
 }
 
-export const NotebookList: React.FC<NotebookListProps> = ({
-  activeNotebookId, onOpenNotebook, refreshTrigger = 0
+export const NotebookList: React.FC<NotebookListProps> = ({ 
+  activeNotebookId, onOpenNotebook, onDeleteNotebook = () => {}, refreshTrigger = 0 
 }) => {
-  const [isExpanded, setIsExpanded] = useState(true);
   const [notebooks, setNotebooks] = useState<NotebookSummary[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(true);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const fetchList = async () => {
     try {
+      setIsLoading(true);
       const data = await listNotebooks();
       setNotebooks(data);
     } catch (e) {
       console.error(e);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -46,6 +50,7 @@ export const NotebookList: React.FC<NotebookListProps> = ({
       await deleteNotebook(id);
       setNotebooks(notebooks.filter(n => n.id !== id));
       setDeleteConfirmId(null);
+      onDeleteNotebook(id);
     } catch (err) {
       console.error(err);
     }
@@ -59,7 +64,7 @@ export const NotebookList: React.FC<NotebookListProps> = ({
       >
         <div className="flex items-center gap-2">
           {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-          <span className="text-[10px] font-semibold uppercase tracking-widest">Notebooks</span>
+          <span className="text-xs font-bold uppercase tracking-wider text-white/50">Notebooks</span>
         </div>
       </button>
 
@@ -68,9 +73,9 @@ export const NotebookList: React.FC<NotebookListProps> = ({
           <button
             id="new-notebook-btn"
             onClick={handleCreate}
-            className="w-full py-2 px-3 rounded-lg bg-natwest-primary/10 hover:bg-natwest-primary/20 border border-natwest-primary/20 hover:border-natwest-primary/40 text-natwest-primary transition-all text-xs font-medium flex items-center justify-center gap-2 mb-2"
+            className="w-full py-2 px-3 rounded-lg bg-natwest-teal hover:bg-natwest-teal/80 text-white shadow-lg shadow-natwest-teal/20 transition-all text-xs font-bold flex items-center justify-center gap-2 mb-2"
           >
-            <Plus className="w-3.5 h-3.5" />
+            <Plus className="w-4 h-4" />
             New Notebook
           </button>
 

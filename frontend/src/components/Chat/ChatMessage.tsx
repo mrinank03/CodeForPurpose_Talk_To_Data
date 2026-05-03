@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Message } from '../../types/index';
 import { ChartRenderer } from '../Charts/ChartRenderer';
+import { Database, ChevronDown, ChevronUp } from 'lucide-react';
 
 const ConfidenceBadge: React.FC<{ confidence: string }> = ({ confidence }) => {
   const config: Record<string, { bg: string; text: string; icon: string }> = {
@@ -11,7 +12,7 @@ const ConfidenceBadge: React.FC<{ confidence: string }> = ({ confidence }) => {
   const c = config[confidence] || config.Medium;
 
   return (
-    <span className={`inline-flex items-center gap-1 mt-3 px-2.5 py-1 rounded-full text-[11px] font-semibold tracking-wide border ${c.bg} ${c.text}`}>
+    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold tracking-wide border ${c.bg} ${c.text}`}>
       <span className="w-3.5 h-3.5 flex items-center justify-center rounded-full bg-current/20 text-[9px] font-bold">{c.icon}</span>
       {confidence} Confidence
     </span>
@@ -19,6 +20,7 @@ const ConfidenceBadge: React.FC<{ confidence: string }> = ({ confidence }) => {
 };
 
 export const ChatMessage: React.FC<{ message: Message }> = ({ message }) => {
+  const [showSql, setShowSql] = useState(false);
   const isUser = message.role === 'user';
 
   return (
@@ -40,9 +42,30 @@ export const ChatMessage: React.FC<{ message: Message }> = ({ message }) => {
           </div>
         )}
 
-        {!isUser && message.confidence && (
-          <div className="flex items-center">
-            <ConfidenceBadge confidence={message.confidence} />
+        {!isUser && (message.confidence || message.sql) && (
+          <div className="mt-4 pt-3 border-t border-white/5 flex flex-col gap-3">
+            <div className="flex flex-wrap items-center gap-3">
+              {message.confidence && <ConfidenceBadge confidence={message.confidence} />}
+              
+              {message.sql && (
+                <button 
+                  onClick={() => setShowSql(!showSql)}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-white/5 hover:bg-white/10 text-white/60 hover:text-white/80 transition-colors border border-white/5"
+                >
+                  <Database className="w-3.5 h-3.5" />
+                  View SQL Query
+                  {showSql ? <ChevronUp className="w-3 h-3 ml-0.5" /> : <ChevronDown className="w-3 h-3 ml-0.5" />}
+                </button>
+              )}
+            </div>
+            
+            {message.sql && showSql && (
+              <div className="bg-black/40 rounded-lg p-3 border border-white/5 overflow-x-auto w-full">
+                <pre className="text-xs text-blue-300 font-mono whitespace-pre-wrap leading-relaxed">
+                  {message.sql}
+                </pre>
+              </div>
+            )}
           </div>
         )}
       </div>

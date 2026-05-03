@@ -19,7 +19,7 @@ def resolve_schema(question: str, session_id: str) -> ResolvedSchema:
     db_path = os.path.join(DATA_DB_DIR, f"{session_id}.db")
     
     # 1. Semantic search for columns
-    relevant_cols, max_score = search_relevant_columns(question, session_id, top_k=5)
+    relevant_cols, max_score = search_relevant_columns(question, session_id, top_k=10)
     
     # 2. Extract full schema from SQLite
     schema_str = ""
